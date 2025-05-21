@@ -4,7 +4,7 @@ function App() {
   const [message, setMessage] = useState('');
 
   const fetchMessage = () => {
-    fetch('http://localhost:8000/api/message') // Adjust this if deployed
+    fetch('https://msirit-facilites.onrender.com/api/message') // Adjust this if deployed
       .then(response => response.json())
       .then(data => setMessage(data.message))
       .catch(error => {
