@@ -167,34 +167,6 @@ const styles = {
   },
 };
 
-function App() {
-  return (
-    <Router>
-      <nav style={navStyles.nav}>
-        <Link to="/" style={navStyles.link}>
-          Home
-        </Link>
-        <Link to="/register" style={navStyles.link}>
-          Register
-        </Link>
-        <Link to="/login" style={navStyles.link}>
-          Login
-        </Link>
-        <Link to="/booking" style={navStyles.link}>
-          Booking
-        </Link>
-      </nav>
-
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/booking" element={<Booking />} />
-      </Routes>
-    </Router>
-  );
-}
-
 const navStyles = {
   nav: {
     padding: '1rem',
