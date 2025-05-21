@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 
-function App() {
+// Import your pages (create these or I can help)
+import Register from './components/Register';
+import Login from './components/Login';
+import Booking from './components/BookingForm';
+
+function Home() {
   const [message, setMessage] = useState('');
 
   const fetchMessage = () => {
-    fetch('https://msirit-facilites.onrender.com/api/message') // Adjust this if deployed
+    fetch('https://msirit-facilites.onrender.com/api/message') // Adjust if needed
       .then(response => response.json())
       .then(data => setMessage(data.message))
       .catch(error => {
@@ -19,6 +25,26 @@ function App() {
       <button onClick={fetchMessage}>Get Message</button>
       <p>{message}</p>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <nav style={{ padding: '1rem', backgroundColor: '#eee', display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+        <Link to="/">Home</Link>
+        <Link to="/register">Register</Link>
+        <Link to="/login">Login</Link>
+        <Link to="/booking">Booking</Link>
+      </nav>
+
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/booking" element={<Booking />} />
+      </Routes>
+    </Router>
   );
 }
 
