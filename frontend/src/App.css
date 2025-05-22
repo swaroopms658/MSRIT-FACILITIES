@@ -1,33 +1,79 @@
+/* Root App container */
 .App {
   text-align: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
+/* React logo or brand element */
 .App-logo {
   height: 40vmin;
+  margin-bottom: 20px;
   pointer-events: none;
+  transition: transform 0.3s ease-in-out;
 }
 
+.App-logo:hover {
+  transform: scale(1.05);
+}
+
+/* Respect user preferences */
 @media (prefers-reduced-motion: no-preference) {
   .App-logo {
     animation: App-logo-spin infinite 20s linear;
   }
 }
 
+/* Main header styling */
 .App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+  background: rgba(40, 44, 52, 0.9);
+  border-radius: 20px;
+  padding: 40px;
+  width: 100%;
+  max-width: 800px;
+  color: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
+.App-header h1 {
+  font-size: 3rem;
+  margin-bottom: 20px;
+}
+
+.App-header p {
+  font-size: 1.25rem;
+  color: #ddd;
+  line-height: 1.6;
+  max-width: 600px;
+}
+
+/* Styled link buttons */
 .App-link {
   color: #61dafb;
+  text-decoration: none;
+  font-weight: bold;
+  padding: 10px 24px;
+  border-radius: 30px;
+  background-color: rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease-in-out;
+  margin-top: 20px;
 }
 
+.App-link:hover {
+  color: #fff;
+  background-color: #61dafb;
+  box-shadow: 0 8px 20px rgba(97, 218, 251, 0.4);
+}
+
+/* Logo spin animation */
 @keyframes App-logo-spin {
   from {
     transform: rotate(0deg);
