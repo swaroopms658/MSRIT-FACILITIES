@@ -116,7 +116,6 @@ const styles = {
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
     color: '#333',
   },
-  
   title: {
     fontSize: '3rem',
     marginBottom: 15,
@@ -167,22 +166,17 @@ const styles = {
   },
 };
 
-const navStyles = {
-  nav: {
-    padding: '1rem',
-    backgroundColor: '#222',
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '2rem',
-  },
-  link: {
-    color: '#eee',
-    textDecoration: 'none',
-    fontWeight: '600',
-    fontSize: '1.1rem',
-    transition: 'color 0.3s ease',
-    userSelect: 'none',
-  },
-};
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/booking" element={<Booking />} />
+      </Routes>
+    </Router>
+  );
+}
 
 export default App;
