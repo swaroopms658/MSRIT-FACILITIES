@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Register from './components/Register';
 import Login from './components/Login';
 import Booking from './components/BookingForm';
-
+// import navstyles from './styles/navStyles';
 function Home() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -216,7 +216,6 @@ const styles = {
     minHeight: 28,
   },
 };
-
 function App() {
   return (
     <Router>
@@ -230,24 +229,24 @@ function App() {
   );
 }
 
-function App() {
-  return (
-    <Router>
-      <nav style={navStyles.nav}>
-        <Link to="/" style={navStyles.link}>Home</Link>
-        <Link to="/register" style={navStyles.link}>Register</Link>
-        <Link to="/login" style={navStyles.link}>Login</Link>
-        <Link to="/booking" style={navStyles.link}>Booking</Link>
-      </nav>
+// function App() {
+//   return (
+//     <Router>
+//       <nav style={navStyles.nav}>
+//         <Link to="/" style={navStyles.link}>Home</Link>
+//         <Link to="/register" style={navStyles.link}>Register</Link>
+//         <Link to="/login" style={navStyles.link}>Login</Link>
+//         <Link to="/booking" style={navStyles.link}>Booking</Link>
+//       </nav>
 
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/booking" element={<Booking />} />
-      </Routes>
-    </Router>
-  );
-}
+    //   <Routes>
+    //     <Route path="/" element={<Home />} />
+    //     <Route path="/register" element={<Register />} />
+    //     <Route path="/login" element={<Login />} />
+    //     <Route path="/booking" element={<Booking />} />
+    //   </Routes>
+    // </Router>
+//   );
+// }
 
 export default App;
