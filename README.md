@@ -6,3 +6,7 @@ In the terminal type the following command : git clone https://github.com/swaroo
 1-Install npm using the following command: npm install
 
 2-Navigate to the frontend folder and type the command to start the server: npm start
+
+# Backend #
+1-Before running the backend Ensure the following command is run: pip install -r requirements.txt
+
