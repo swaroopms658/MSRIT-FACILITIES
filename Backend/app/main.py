@@ -1,20 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app import auth, booking, db
+from .auth import router as auth_router
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000/"],  # adjust for your frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/auth")
-app.include_router(booking.router, prefix="/api/booking")
-
-@app.on_event("startup")
-async def startup():
-    await db.init_indexes()
+app.include_router(auth_router, prefix="/auth")
