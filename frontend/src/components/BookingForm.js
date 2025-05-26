@@ -1,21 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
-const facilities = ['Gym', 'Basketball', 'Badminton', 'Table Tennis'];
+const facilities = ["Gym", "Basketball", "Badminton", "Table Tennis"];
 
 const Booking = () => {
   const navigate = useNavigate();
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(localStorage.getItem("token"));
   const [currentBooking, setCurrentBooking] = useState(null);
-  const [selectedFacility, setSelectedFacility] = useState('');
-  const [message, setMessage] = useState('');
+  const [selectedFacility, setSelectedFacility] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!token) {
-      navigate('/login');
+      navigate("/login");
     }
   }, [token, navigate]);
 
@@ -29,7 +29,7 @@ const Booking = () => {
   const fetchCurrentBooking = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:8000/api/booking/me', {
+      const response = await axios.get("http://localhost:8000/api/booking/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCurrentBooking(response.data.booking || null);
@@ -38,33 +38,34 @@ const Booking = () => {
       setLoading(false);
       if (error.response && error.response.status === 401) {
         // Token invalid or expired
-        localStorage.removeItem('token');
-        navigate('/login');
+        localStorage.removeItem("token");
+        navigate("/login");
       } else {
-        setMessage('Failed to fetch booking info.');
+        setMessage("Failed to fetch booking info.");
       }
     }
   };
 
   const handleBooking = async () => {
     if (!selectedFacility) {
-      setMessage('Please select a facility to book.');
+      setMessage("Please select a facility to book.");
       return;
     }
     try {
       setLoading(true);
       await axios.post(
-        'http://localhost:8000/api/booking',
+        "http://localhost:8000/api/booking",
         { facility: selectedFacility },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setMessage('Booking successful!');
+      setMessage("Booking successful!");
       fetchCurrentBooking();
       setLoading(false);
     } catch (error) {
       setLoading(false);
       setMessage(
-        error.response?.data?.detail || 'Failed to create booking. You may have an active booking already.'
+        error.response?.data?.detail ||
+          "Failed to create booking. You may have an active booking already."
       );
     }
   };
@@ -72,16 +73,16 @@ const Booking = () => {
   const handleCancel = async () => {
     try {
       setLoading(true);
-      await axios.delete('http://localhost:8000/api/booking/cancel', {
+      await axios.delete("http://localhost:8000/api/booking/cancel", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setMessage('Booking cancelled.');
+      setMessage("Booking cancelled.");
       setCurrentBooking(null);
-      setSelectedFacility('');
+      setSelectedFacility("");
       setLoading(false);
     } catch (error) {
       setLoading(false);
-      setMessage(error.response?.data?.detail || 'Failed to cancel booking.');
+      setMessage(error.response?.data?.detail || "Failed to cancel booking.");
     }
   };
 
@@ -99,7 +100,10 @@ const Booking = () => {
                 You have booked: <strong>{currentBooking.facility}</strong>
               </p>
               <p>
-                Slot time: <strong>{new Date(currentBooking.slot_time).toLocaleString()}</strong>
+                Slot time:{" "}
+                <strong>
+                  {new Date(currentBooking.slot_time).toLocaleString()}
+                </strong>
               </p>
               <button style={styles.cancelBtn} onClick={handleCancel}>
                 Cancel Booking
@@ -136,41 +140,41 @@ const Booking = () => {
 
 const styles = {
   container: {
-    maxWidth: '500px',
-    margin: '3rem auto',
-    fontFamily: 'Arial, sans-serif',
-    textAlign: 'center',
+    maxWidth: "500px",
+    margin: "3rem auto",
+    fontFamily: "Arial, sans-serif",
+    textAlign: "center",
   },
   bookingForm: {
-    marginTop: '1rem',
+    marginTop: "1rem",
   },
   select: {
-    padding: '10px',
-    fontSize: '16px',
-    marginRight: '10px',
+    padding: "10px",
+    fontSize: "16px",
+    marginRight: "10px",
   },
   bookBtn: {
-    padding: '10px 15px',
-    fontSize: '16px',
-    cursor: 'pointer',
+    padding: "10px 15px",
+    fontSize: "16px",
+    cursor: "pointer",
   },
   bookingInfo: {
-    marginTop: '1rem',
-    backgroundColor: '#f0f0f0',
-    padding: '1rem',
-    borderRadius: '5px',
+    marginTop: "1rem",
+    backgroundColor: "#f0f0f0",
+    padding: "1rem",
+    borderRadius: "5px",
   },
   cancelBtn: {
-    marginTop: '1rem',
-    padding: '8px 12px',
-    backgroundColor: '#ff4d4d',
-    border: 'none',
-    color: 'white',
-    cursor: 'pointer',
+    marginTop: "1rem",
+    padding: "8px 12px",
+    backgroundColor: "#ff4d4d",
+    border: "none",
+    color: "white",
+    cursor: "pointer",
   },
   message: {
-    marginTop: '1rem',
-    color: 'green',
+    marginTop: "1rem",
+    color: "green",
   },
 };
 
