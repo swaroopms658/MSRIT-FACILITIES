@@ -301,8 +301,8 @@ const styles = {
     textAlign: "center",
     padding: "2rem",
     borderRadius: "15px",
-    background: "linear-gradient(135deg, #f9f9f9, #e0e0e0)",
-    boxShadow: "0 15px 40px rgba(0,0,0,0.1)",
+    background: "linear-gradient(135deg,rgb(118, 77, 135),rgb(211, 180, 111))",
+    boxShadow: "0 15px 40px rgba(115, 16, 16, 0.1)",
   },
   bookingInfo: {
     marginTop: "1.5rem",
