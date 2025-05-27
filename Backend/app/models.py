@@ -4,6 +4,9 @@ class UserIn(BaseModel):
     name: str
     email: EmailStr
     password: str
+    department: str
+    rollNumber: str
+
 
     @validator("email")
     def email_must_be_msrit(cls, v):
