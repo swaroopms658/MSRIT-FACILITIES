@@ -7,7 +7,6 @@ class UserIn(BaseModel):
     department: str
     rollNumber: str
 
-
     @validator("email")
     def email_must_be_msrit(cls, v):
         if not v.endswith("@msrit.edu"):
