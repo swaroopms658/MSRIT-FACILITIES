@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 from urllib.parse import quote_plus
 
 router = APIRouter(prefix="/auth")
-
 fake_users_db = {
     "user@msrit.edu": {
         "password": "secret123",
