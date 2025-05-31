@@ -1,3 +1,4 @@
+// BookingForm.js
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -5,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 const facilities = ["Gym", "Basketball", "Badminton", "Table Tennis"];
 const TOTAL_SLOTS = 30;
 
-// Assign a distinct color per facility for tabs and highlights
 const facilityColors = {
   Gym: "#e67e22",
   Basketball: "#2980b9",
@@ -36,7 +36,6 @@ const Booking = () => {
     }
   }, [token]);
 
-  // Fetch user's current booking
   const fetchCurrentBooking = async () => {
     try {
       setLoading(true);
@@ -45,10 +44,9 @@ const Booking = () => {
       });
       setCurrentBooking(response.data.booking || null);
       setLoading(false);
-      // If user already booked a slot, set that as selected slot
       if (response.data.booking) {
         setSelectedFacility(response.data.booking.facility);
-        setSelectedSlot(response.data.booking.slot_number); // Assuming slot_number is returned by API
+        setSelectedSlot(response.data.booking.slot_number);
       } else {
         setSelectedSlot(null);
       }
@@ -63,23 +61,27 @@ const Booking = () => {
     }
   };
 
-  // Fetch booked slots for all facilities
+  // **Updated function: fetch slots per facility and aggregate**
   const fetchBookedSlots = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:8000/api/booking/booked-slots",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      // Response format assumed: { Gym: [1,2,5], Basketball: [4,10], ... }
-      setBookedSlots(response.data || {});
+      let allBooked = {};
+      for (const facility of facilities) {
+        const response = await axios.get(
+          `http://localhost:8000/api/booking/booked-slots?facility=${encodeURIComponent(
+            facility
+          )}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        allBooked[facility] = response.data || [];
+      }
+      setBookedSlots(allBooked);
     } catch (error) {
       setMessage("Failed to fetch booked slots.");
     }
   };
 
-  // When user clicks on a slot
   const handleSlotClick = (facility, slot) => {
     if (facility !== selectedFacility) {
       setSelectedFacility(facility);
@@ -90,7 +92,6 @@ const Booking = () => {
     setMessage("");
   };
 
-  // Book the selected slot
   const handleBooking = async () => {
     if (!selectedSlot) {
       setMessage("Please select a slot to book.");
@@ -113,7 +114,6 @@ const Booking = () => {
     }
   };
 
-  // Cancel existing booking
   const handleCancel = async () => {
     try {
       setLoading(true);
@@ -201,10 +201,10 @@ const Booking = () => {
                   style={{
                     ...styles.slotButton,
                     backgroundColor: isBooked
-                      ? "#e74c3c" // red for booked
+                      ? "#e74c3c"
                       : isSelected
-                      ? "#27ae60" // dark green for selected
-                      : "#2ecc71", // bright green for available
+                      ? "#27ae60"
+                      : "#2ecc71",
                     color: "white",
                     cursor: isBooked ? "not-allowed" : "pointer",
                     boxShadow: isSelected ? "0 0 8px #27ae60" : "none",
@@ -319,9 +319,8 @@ const styles = {
     transition: "background-color 0.3s ease",
   },
   message: {
-    marginTop: "1.5rem",
+    marginTop: "1.2rem",
     fontWeight: "600",
-    fontSize: "1rem",
   },
 };
 
