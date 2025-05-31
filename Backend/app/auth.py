@@ -33,10 +33,14 @@ async def register(user: UserIn):
 
 @router.post("/login", response_model=LoginResponse)
 async def login(data: LoginRequest):
-    user = fake_users_db.get(data.email)
+    user = await users_collection.find_one({"email": data.email})
     if not user or user["password"] != data.password:
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # In real applications, generate JWT or OAuth2 token here
+    token = str(uuid4())  # Temporary token generation for example
+
     return {
-        "access_token": user["access_token"],
+        "access_token": token,
         "token_type": "bearer"
     }
