@@ -1,13 +1,14 @@
 from fastapi import APIRouter, HTTPException
 from uuid import uuid4
 from .models import UserIn, UserOut, LoginRequest, LoginResponse
-from .database import users_collection  # <-- Import the async collection
+from .database import users_collection  # Async MongoDB collection
 
 router = APIRouter(prefix="/auth")
 
+
 @router.post("/register", response_model=UserOut)
 async def register(user: UserIn):
-    # Check for existing user
+    # Check if user already exists
     existing_user = await users_collection.find_one({"email": user.email})
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -17,19 +18,20 @@ async def register(user: UserIn):
         "id": user_id,
         "name": user.name,
         "email": user.email,
-        "password": user.password,  # Hash in production!
+        "password": user.password,  # ❗ In production, use hashed passwords!
         "rollNumber": user.rollNumber,
         "department": user.department,
     }
 
-    await users_collection.insert_one(new_user)  # <-- Use await
+    await users_collection.insert_one(new_user)
 
-    return {
-        "id": user_id,
-        "name": user.name,
-        "email": user.email,
-        "qr_code": f"https://api.qrserver.com/v1/create-qr-code/?data={user_id}&size=200x200"
-    }
+    return UserOut(
+        id=user_id,
+        name=user.name,
+        email=user.email,
+        qr_code=f"https://api.qrserver.com/v1/create-qr-code/?data={user_id}&size=200x200"
+    )
+
 
 @router.post("/login", response_model=LoginResponse)
 async def login(data: LoginRequest):
@@ -37,10 +39,10 @@ async def login(data: LoginRequest):
     if not user or user["password"] != data.password:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    # In real applications, generate JWT or OAuth2 token here
-    token = str(uuid4())  # Temporary token generation for example
+    # ❗ In production, use JWT or OAuth2 token handling
+    token = str(uuid4())  # Temporary UUID token for simplicity
 
-    return {
-        "access_token": token,
-        "token_type": "bearer"
-    }
+    return LoginResponse(
+        access_token=token,
+        token_type="bearer"
+    )

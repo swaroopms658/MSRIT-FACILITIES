@@ -31,7 +31,15 @@ const Register = () => {
         navigate("/login");
       }, 2000);
     } catch (err) {
-      setError(err.response?.data?.detail || "Registration failed");
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        // Map Pydantic validation errors and join messages with commas
+        setError(detail.map((d) => d.msg).join(", "));
+      } else if (typeof detail === "string") {
+        setError(detail);
+      } else {
+        setError("Registration failed");
+      }
     }
   };
 
@@ -91,7 +99,14 @@ const Register = () => {
       </form>
 
       {message && <p style={styles.success}>{message}</p>}
-      {error && <p style={styles.error}>{error}</p>}
+
+      {/* Display multiple error messages nicely */}
+      {error &&
+        error.split(", ").map((errMsg, index) => (
+          <p key={index} style={styles.error}>
+            {errMsg}
+          </p>
+        ))}
     </div>
   );
 };

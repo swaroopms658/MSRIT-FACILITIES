@@ -1,4 +1,6 @@
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr, field_validator
+
+MSRIT_DOMAIN = "@msrit.edu"
 
 class UserIn(BaseModel):
     name: str
@@ -7,11 +9,13 @@ class UserIn(BaseModel):
     department: str
     rollNumber: str
 
-    @validator("email")
-    def email_must_be_msrit(cls, v):
-        if not v.endswith("@msrit.edu"):
-            raise ValueError("Email must be of msrit.edu domain")
+    @field_validator("email")
+    @classmethod
+    def email_must_be_msrit(cls, v: str) -> str:
+        if not v.lower().endswith(MSRIT_DOMAIN):
+            raise ValueError(f"Email must end with {MSRIT_DOMAIN}")
         return v
+
 
 class UserOut(BaseModel):
     id: str
@@ -19,15 +23,18 @@ class UserOut(BaseModel):
     email: EmailStr
     qr_code: str
 
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-    @validator("email")
-    def email_must_be_msrit(cls, v):
-        if not v.endswith("@msrit.edu"):
-            raise ValueError("Email must be of msrit.edu domain")
+    @field_validator("email")
+    @classmethod
+    def email_must_be_msrit(cls, v: str) -> str:
+        if not v.lower().endswith(MSRIT_DOMAIN):
+            raise ValueError(f"Email must end with {MSRIT_DOMAIN}")
         return v
+
 
 class LoginResponse(BaseModel):
     access_token: str
