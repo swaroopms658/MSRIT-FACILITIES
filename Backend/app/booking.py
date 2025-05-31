@@ -1,9 +1,8 @@
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List
-from fastapi import Query
+from typing import Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Query
 from pydantic import BaseModel
 
 from .auth import verify_token  # your auth dependency
@@ -37,16 +36,18 @@ async def create_booking(booking: BookingRequest, user=Depends(verify_token)):
     if booking.facility not in VALID_FACILITIES:
         raise HTTPException(status_code=400, detail="Invalid facility")
 
-    # Check overlapping bookings
+    # Check if user already has an active booking (not expired)
+    existing_booking = user_bookings.get(user_id)
+    if existing_booking and existing_booking["end"] > now_utc:
+        raise HTTPException(
+            status_code=400,
+            detail="User already has an active booking. Only one booking allowed at a time."
+        )
+
+    # Check overlapping bookings for the facility
     for existing in booked_slots[booking.facility]:
         if is_overlapping(slot_start, slot_end, existing["start"], existing["end"]):
             raise HTTPException(status_code=400, detail="Slot already booked for this time")
-
-    # Remove old booking for user if exists
-    if user_id in user_bookings:
-        old_booking = user_bookings[user_id]
-        booked_slots[old_booking["facility"]].remove(old_booking)
-        booking_id_map.pop(old_booking["booking_id"], None)
 
     booking_id = str(uuid.uuid4())
 
@@ -102,7 +103,7 @@ async def verify_booking(booking_id: str):
         "end": booking["end"].isoformat(),
         "user_id": booking["user_id"],
     }
-from typing import Optional
+
 
 @router.get("/booked-slots")
 async def get_booked_slots(facility: Optional[str] = Query(None, description="Facility name")):
