@@ -1,0 +1,20 @@
+{
+  "name": "msirit-facilites",
+  "version": "1.0.0",
+  "description": "In the terminal, type the following command: git clone https://github.com/swaroopms658/MSIRIT-FACILITES.git",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/swaroopms658/MSIRIT-FACILITES.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/swaroopms658/MSIRIT-FACILITES/issues"
+  },
+  "homepage": "https://github.com/swaroopms658/MSIRIT-FACILITES#readme"
+}

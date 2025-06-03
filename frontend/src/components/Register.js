@@ -1,35 +1,45 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const Register = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    rollNumber: '',
-    department: '',
+    name: "",
+    email: "",
+    password: "",
+    rollNumber: "",
+    department: "",
   });
 
-  const [qrCode, setQrCode] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage('');
-    setError('');
-    setQrCode('');
+    setMessage("");
+    setError("");
 
     try {
-      const res = await axios.post('http://localhost:8000/auth/register', formData);
-      setMessage('Registration successful!');
-      setQrCode(res.data.qr_code);
+      await axios.post("http://localhost:8000/auth/register", formData);
+      setMessage("Registration successful! Redirecting to login...");
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Registration failed');
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        // Map Pydantic validation errors and join messages with commas
+        setError(detail.map((d) => d.msg).join(", "));
+      } else if (typeof detail === "string") {
+        setError(detail);
+      } else {
+        setError("Registration failed");
+      }
     }
   };
 
@@ -83,64 +93,59 @@ const Register = () => {
           required
           style={styles.input}
         />
-        <button type="submit" style={styles.button}>Register</button>
+        <button type="submit" style={styles.button}>
+          Register
+        </button>
       </form>
 
       {message && <p style={styles.success}>{message}</p>}
-      {error && <p style={styles.error}>{error}</p>}
 
-      {qrCode && (
-        <div style={styles.qrContainer}>
-          <h3>Scan this QR code to enter facilities</h3>
-          <img src={qrCode} alt="QR Code" style={styles.qr} />
-        </div>
-      )}
+      {/* Display multiple error messages nicely */}
+      {error &&
+        error.split(", ").map((errMsg, index) => (
+          <p key={index} style={styles.error}>
+            {errMsg}
+          </p>
+        ))}
     </div>
   );
 };
 
 const styles = {
   container: {
-    maxWidth: '500px',
-    margin: 'auto',
-    padding: '2rem',
-    textAlign: 'center',
-    fontFamily: 'sans-serif',
+    maxWidth: "500px",
+    margin: "auto",
+    padding: "2rem",
+    textAlign: "center",
+    fontFamily: "sans-serif",
   },
   header: {
-    marginBottom: '1rem',
+    marginBottom: "1rem",
   },
   form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
   },
   input: {
-    padding: '10px',
-    fontSize: '16px',
+    padding: "10px",
+    fontSize: "16px",
   },
   button: {
-    background: '#4CAF50',
-    color: 'white',
-    padding: '10px',
-    fontSize: '16px',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  qrContainer: {
-    marginTop: '2rem',
-  },
-  qr: {
-    width: '200px',
-    height: '200px',
+    background: "#4CAF50",
+    color: "white",
+    padding: "10px",
+    fontSize: "16px",
+    border: "none",
+    cursor: "pointer",
   },
   success: {
-    color: 'green',
-    marginTop: '1rem',
+    color: "green",
+    marginTop: "1rem",
   },
   error: {
-    color: 'red',
-    marginTop: '1rem',
+    color: "red",
+    marginTop: "1rem",
   },
 };
 
