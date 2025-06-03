@@ -20,3 +20,7 @@ app.include_router(auth_router)
 
 # Include booking routes under /api/booking prefix (already prefixed in booking.py)
 app.include_router(booking_router)
+
+@app.get("/")
+def root():
+    return {"message": "Service is running"}
