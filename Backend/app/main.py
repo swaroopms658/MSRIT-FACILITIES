@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .auth import router as auth_router
 from .booking import router as booking_router
+import asyncio
+
 
 app = FastAPI()
 
