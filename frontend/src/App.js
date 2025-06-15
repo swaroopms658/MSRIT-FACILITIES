@@ -17,7 +17,7 @@ function Home() {
 
   const fetchMessage = () => {
     setLoading(true);
-    fetch("https://msirit-facilites.onrender.com/api/message")
+    fetch("https://13.61.26.123/api/message")
       .then((res) => res.json())
       .then((data) => {
         setMessage(data.message);
