@@ -4,7 +4,6 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 const facilities = ["Gym", "Basketball", "Badminton", "Table Tennis"];
-const TOTAL_SLOTS = 30;
 
 const facilityColors = {
   Gym: "#e67e22",
@@ -13,13 +12,45 @@ const facilityColors = {
   "Table Tennis": "#8e44ad",
 };
 
+// Helper to generate 30-min time slots for 10:00-13:30 and 14:00-16:30
+function generateTimeSlots() {
+  const slots = [];
+  // Morning: 10:00 to 13:30
+  let hour = 10, minute = 0;
+  while (hour < 13 || (hour === 13 && minute === 0)) {
+    const start = `${hour.toString().padStart(2, "0")}:${minute === 0 ? "00" : "30"}`;
+    minute += 30;
+    if (minute === 60) {
+      hour += 1;
+      minute = 0;
+    }
+    const end = `${hour.toString().padStart(2, "0")}:${minute === 0 ? "00" : "30"}`;
+    slots.push({ start, end });
+  }
+  // Afternoon: 14:00 to 16:30
+  hour = 14; minute = 0;
+  while (hour < 16 || (hour === 16 && minute === 0)) {
+    const start = `${hour.toString().padStart(2, "0")}:${minute === 0 ? "00" : "30"}`;
+    minute += 30;
+    if (minute === 60) {
+      hour += 1;
+      minute = 0;
+    }
+    const end = `${hour.toString().padStart(2, "0")}:${minute === 0 ? "00" : "30"}`;
+    slots.push({ start, end });
+  }
+  return slots;
+}
+
+const timeSlots = generateTimeSlots();
+
 const Booking = () => {
   const navigate = useNavigate();
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [currentBooking, setCurrentBooking] = useState(null);
   const [selectedFacility, setSelectedFacility] = useState(facilities[0]);
-  const [bookedSlots, setBookedSlots] = useState({}); // {facility: [slotNumbers]}
-  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [bookedSlots, setBookedSlots] = useState({}); // {facility: [{start, end}]}
+  const [selectedSlotIdx, setSelectedSlotIdx] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -34,21 +65,28 @@ const Booking = () => {
       fetchCurrentBooking();
       fetchBookedSlots();
     }
-  }, [token]);
+    // eslint-disable-next-line
+  }, [token, selectedFacility]);
 
   const fetchCurrentBooking = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("http://13.61.26.123:8000/api/booking/me", {
+      const response = await axios.get("http://localhost:8000/api/booking/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCurrentBooking(response.data.booking || null);
       setLoading(false);
       if (response.data.booking) {
         setSelectedFacility(response.data.booking.facility);
-        setSelectedSlot(response.data.booking.slot_number);
+        // Find the slot index that matches the booking's start and end
+        const idx = timeSlots.findIndex(
+          (slot) =>
+            slot.start === response.data.booking.start.slice(11, 16) &&
+            slot.end === response.data.booking.end.slice(11, 16)
+        );
+        setSelectedSlotIdx(idx !== -1 ? idx : null);
       } else {
-        setSelectedSlot(null);
+        setSelectedSlotIdx(null);
       }
     } catch (error) {
       setLoading(false);
@@ -61,7 +99,6 @@ const Booking = () => {
     }
   };
 
-  // **Updated function: fetch slots per facility and aggregate**
   const fetchBookedSlots = async () => {
     try {
       let allBooked = {};
@@ -74,6 +111,7 @@ const Booking = () => {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
+        // Store as array of {start, end}
         allBooked[facility] = response.data || [];
       }
       setBookedSlots(allBooked);
@@ -82,26 +120,36 @@ const Booking = () => {
     }
   };
 
-  const handleSlotClick = (facility, slot) => {
-    if (facility !== selectedFacility) {
-      setSelectedFacility(facility);
-      setSelectedSlot(slot);
-    } else {
-      setSelectedSlot(slot);
-    }
+  const isSlotBooked = (facility, slot) => {
+    // slot: {start, end}
+    const booked = bookedSlots[facility] || [];
+    return booked.some(
+      (b) =>
+        b.start.slice(11, 16) === slot.start &&
+        b.end.slice(11, 16) === slot.end
+    );
+  };
+
+  const handleSlotClick = (idx) => {
+    setSelectedSlotIdx(idx);
     setMessage("");
   };
 
   const handleBooking = async () => {
-    if (!selectedSlot) {
+    if (selectedSlotIdx === null) {
       setMessage("Please select a slot to book.");
       return;
     }
     try {
       setLoading(true);
+      const slot = timeSlots[selectedSlotIdx];
       await axios.post(
         "http://localhost:8000/api/booking",
-        { facility: selectedFacility, slot_number: selectedSlot },
+        {
+          facility: selectedFacility,
+          start: slot.start,
+          end: slot.end,
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setMessage("Booking successful!");
@@ -122,7 +170,7 @@ const Booking = () => {
       });
       setMessage("Booking cancelled.");
       setCurrentBooking(null);
-      setSelectedSlot(null);
+      setSelectedSlotIdx(null);
       fetchBookedSlots();
       setLoading(false);
     } catch (error) {
@@ -142,7 +190,7 @@ const Booking = () => {
             key={facility}
             onClick={() => {
               setSelectedFacility(facility);
-              setSelectedSlot(null);
+              setSelectedSlotIdx(null);
               setMessage("");
             }}
             style={{
@@ -169,13 +217,12 @@ const Booking = () => {
       {!loading && currentBooking ? (
         <div style={styles.bookingInfo}>
           <p>
-            You have booked: <strong>{currentBooking.facility}</strong> - Slot{" "}
-            <strong>{currentBooking.slot_number}</strong>
+            You have booked: <strong>{currentBooking.facility}</strong>
           </p>
           <p>
             Slot time:{" "}
             <strong>
-              {new Date(currentBooking.slot_time).toLocaleString()}
+              {currentBooking.start.slice(11, 16)} - {currentBooking.end.slice(11, 16)}
             </strong>
           </p>
           <button
@@ -188,16 +235,15 @@ const Booking = () => {
       ) : (
         <>
           <div style={styles.slotsGrid}>
-            {[...Array(TOTAL_SLOTS)].map((_, idx) => {
-              const slotNum = idx + 1;
-              const isBooked = bookedSlots[selectedFacility]?.includes(slotNum);
-              const isSelected = selectedSlot === slotNum;
+            {timeSlots.map((slot, idx) => {
+              const isBooked = isSlotBooked(selectedFacility, slot);
+              const isSelected = selectedSlotIdx === idx;
 
               return (
                 <button
-                  key={slotNum}
+                  key={idx}
                   disabled={isBooked}
-                  onClick={() => handleSlotClick(selectedFacility, slotNum)}
+                  onClick={() => handleSlotClick(idx)}
                   style={{
                     ...styles.slotButton,
                     backgroundColor: isBooked
@@ -209,10 +255,11 @@ const Booking = () => {
                     cursor: isBooked ? "not-allowed" : "pointer",
                     boxShadow: isSelected ? "0 0 8px #27ae60" : "none",
                     border: "none",
+                    minWidth: 90,
                   }}
-                  title={isBooked ? "Booked" : `Slot #${slotNum}`}
+                  title={isBooked ? "Booked" : `${slot.start} - ${slot.end}`}
                 >
-                  {slotNum}
+                  {slot.start} - {slot.end}
                 </button>
               );
             })}
@@ -221,13 +268,13 @@ const Booking = () => {
           <button
             style={{
               ...styles.bookBtn,
-              backgroundColor: selectedSlot
+              backgroundColor: selectedSlotIdx !== null
                 ? facilityColors[selectedFacility]
                 : "#bdc3c7",
-              cursor: selectedSlot ? "pointer" : "not-allowed",
+              cursor: selectedSlotIdx !== null ? "pointer" : "not-allowed",
             }}
             onClick={handleBooking}
-            disabled={!selectedSlot}
+            disabled={selectedSlotIdx === null}
           >
             Book Selected Slot
           </button>
@@ -277,15 +324,15 @@ const styles = {
   },
   slotsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(6, 1fr)",
+    gridTemplateColumns: "repeat(3, 1fr)",
     gap: "12px",
     justifyItems: "center",
     marginBottom: "1.8rem",
   },
   slotButton: {
-    width: "45px",
+    width: "120px",
     height: "45px",
-    borderRadius: "22.5px",
+    borderRadius: "8px",
     fontSize: "1rem",
     fontWeight: "600",
     outline: "none",
