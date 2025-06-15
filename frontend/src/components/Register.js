@@ -25,7 +25,7 @@ const Register = () => {
     setError("");
 
     try {
-      await axios.post("http://13.61.26.123:8000/auth/register", formData);
+      await axios.post("http://127.0.0.1:8000/auth/register", formData);
       setMessage("Registration successful! Redirecting to login...");
       setTimeout(() => {
         navigate("/login");
