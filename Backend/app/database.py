@@ -15,3 +15,4 @@ db = client[DB_NAME]
 
 # Define the users collection to be used elsewhere
 users_collection = db["users"]
+bookings_collection = db["bookings"]
