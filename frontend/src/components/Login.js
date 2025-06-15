@@ -21,7 +21,17 @@ const Login = () => {
       localStorage.setItem('token', response.data.access_token);
       navigate('/booking'); // Redirect to booking page
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      let msg = 'Login failed. Please try again.';
+      if (err.response?.data?.detail) {
+        if (Array.isArray(err.response.data.detail)) {
+          msg = err.response.data.detail.map(e => e.msg).join(', ');
+        } else if (typeof err.response.data.detail === "string") {
+          msg = err.response.data.detail;
+        } else if (typeof err.response.data.detail === "object") {
+          msg = JSON.stringify(err.response.data.detail);
+        }
+      }
+      setError(msg);
     }
   };
 
