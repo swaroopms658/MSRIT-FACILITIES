@@ -16,7 +16,7 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await axios.post('http://13.61.26.123:8000/auth/login', formData);
+      const response = await axios.post('http://127.0.0.1:8000/auth/login', formData);
       // Assuming response contains { access_token: "token", token_type: "bearer" }
       localStorage.setItem('token', response.data.access_token);
       navigate('/booking'); // Redirect to booking page
