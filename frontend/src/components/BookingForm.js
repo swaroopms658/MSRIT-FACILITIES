@@ -71,7 +71,7 @@ const Booking = () => {
   const fetchCurrentBooking = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("http://localhost:8000/api/booking/me", {
+      const response = await axios.get("http://13.61.26.123:8000/api/booking/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCurrentBooking(response.data.booking || null);

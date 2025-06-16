@@ -10,7 +10,7 @@ function Home() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [fadeIn, setFadeIn] = useState(false);
-
+//13.61.26.123 EC2 IP
   useEffect(() => {
     setFadeIn(true);
   }, []);
