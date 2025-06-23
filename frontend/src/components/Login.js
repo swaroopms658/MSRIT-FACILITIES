@@ -1,36 +1,39 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const Login = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     try {
-      const response = await axios.post('http://13.61.26.123:8000/auth/login', formData);
-      // Assuming response contains { access_token: "token", token_type: "bearer" }
-      localStorage.setItem('token', response.data.access_token);
-      navigate('/booking'); // Redirect to booking page
+      const response = await axios.post(
+        "http://127.0.0.1:8000/auth/login",
+        formData
+      );
+      localStorage.setItem("token", response.data.access_token);
+      navigate("/booking"); // Redirect to booking page
     } catch (err) {
-      let msg = 'Login failed. Please try again.';
-      if (err.response?.data?.detail) {
-        if (Array.isArray(err.response.data.detail)) {
-          msg = err.response.data.detail.map(e => e.msg).join(', ');
-        } else if (typeof err.response.data.detail === "string") {
-          msg = err.response.data.detail;
-        } else if (typeof err.response.data.detail === "object") {
-          msg = JSON.stringify(err.response.data.detail);
-        }
+      let msg = "Login failed. Please try again.";
+
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        msg = detail.map((e) => `${e.loc?.join(".")} → ${e.msg}`).join("\n");
+      } else if (typeof detail === "string") {
+        msg = detail;
+      } else if (typeof detail === "object") {
+        msg = JSON.stringify(detail);
       }
+
       setError(msg);
     }
   };
@@ -57,40 +60,44 @@ const Login = () => {
           required
           style={styles.input}
         />
-        <button type="submit" style={styles.button}>Login</button>
+        <button type="submit" style={styles.button}>
+          Login
+        </button>
       </form>
-      {error && <p style={styles.error}>{error}</p>}
+      {error && <pre style={styles.error}>{error}</pre>}
     </div>
   );
 };
 
 const styles = {
   container: {
-    maxWidth: '400px',
-    margin: '3rem auto',
-    textAlign: 'center',
-    fontFamily: 'Arial, sans-serif',
+    maxWidth: "400px",
+    margin: "3rem auto",
+    textAlign: "center",
+    fontFamily: "Arial, sans-serif",
   },
   form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
   },
   input: {
-    padding: '10px',
-    fontSize: '16px',
+    padding: "10px",
+    fontSize: "16px",
   },
   button: {
-    padding: '10px',
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '16px',
+    padding: "10px",
+    backgroundColor: "#007bff",
+    color: "white",
+    border: "none",
+    cursor: "pointer",
+    fontSize: "16px",
   },
   error: {
-    color: 'red',
-    marginTop: '1rem',
+    color: "red",
+    marginTop: "1rem",
+    textAlign: "left",
+    whiteSpace: "pre-wrap",
   },
 };
 

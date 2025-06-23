@@ -25,20 +25,22 @@ const Register = () => {
     setError("");
 
     try {
-      await axios.post("http://13.61.26.123:8000/auth/register", formData);
+      await axios.post("http://127.0.0.1:8000/auth/register", formData);
       setMessage("Registration successful! Redirecting to login...");
       setTimeout(() => {
         navigate("/login");
       }, 2000);
     } catch (err) {
       const detail = err.response?.data?.detail;
+
       if (Array.isArray(detail)) {
-        // Map Pydantic validation errors and join messages with commas
-        setError(detail.map((d) => d.msg).join(", "));
+        // Pydantic validation errors
+        setError(detail.map((d) => `${d.loc.join(".")} → ${d.msg}`).join("\n"));
       } else if (typeof detail === "string") {
+        // Custom backend error (e.g., email already exists)
         setError(detail);
       } else {
-        setError("Registration failed");
+        setError("Registration failed. Please check your input and try again.");
       }
     }
   };
@@ -60,7 +62,7 @@ const Register = () => {
         <input
           type="email"
           name="email"
-          placeholder="College Email"
+          placeholder="College Email (must end with @msrit.edu)"
           value={formData.email}
           onChange={handleChange}
           required
@@ -100,13 +102,7 @@ const Register = () => {
 
       {message && <p style={styles.success}>{message}</p>}
 
-      {/* Display multiple error messages nicely */}
-      {error &&
-        error.split(", ").map((errMsg, index) => (
-          <p key={index} style={styles.error}>
-            {errMsg}
-          </p>
-        ))}
+      {error && <pre style={styles.error}>{error}</pre>}
     </div>
   );
 };
@@ -146,6 +142,8 @@ const styles = {
   error: {
     color: "red",
     marginTop: "1rem",
+    whiteSpace: "pre-wrap",
+    textAlign: "left",
   },
 };
 
