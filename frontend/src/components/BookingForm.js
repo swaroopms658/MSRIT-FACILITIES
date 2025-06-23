@@ -12,31 +12,38 @@ const facilityColors = {
   "Table Tennis": "#8e44ad",
 };
 
-// Helper to generate 30-min time slots for 10:00-13:30 and 14:00-16:30
 function generateTimeSlots() {
   const slots = [];
-  // Morning: 10:00 to 13:30
-  let hour = 10, minute = 0;
+  let hour = 10,
+    minute = 0;
   while (hour < 13 || (hour === 13 && minute === 0)) {
-    const start = `${hour.toString().padStart(2, "0")}:${minute === 0 ? "00" : "30"}`;
+    const start = `${hour.toString().padStart(2, "0")}:${
+      minute === 0 ? "00" : "30"
+    }`;
     minute += 30;
     if (minute === 60) {
       hour += 1;
       minute = 0;
     }
-    const end = `${hour.toString().padStart(2, "0")}:${minute === 0 ? "00" : "30"}`;
+    const end = `${hour.toString().padStart(2, "0")}:${
+      minute === 0 ? "00" : "30"
+    }`;
     slots.push({ start, end });
   }
-  // Afternoon: 14:00 to 16:30
-  hour = 14; minute = 0;
+  hour = 14;
+  minute = 0;
   while (hour < 16 || (hour === 16 && minute === 0)) {
-    const start = `${hour.toString().padStart(2, "0")}:${minute === 0 ? "00" : "30"}`;
+    const start = `${hour.toString().padStart(2, "0")}:${
+      minute === 0 ? "00" : "30"
+    }`;
     minute += 30;
     if (minute === 60) {
       hour += 1;
       minute = 0;
     }
-    const end = `${hour.toString().padStart(2, "0")}:${minute === 0 ? "00" : "30"}`;
+    const end = `${hour.toString().padStart(2, "0")}:${
+      minute === 0 ? "00" : "30"
+    }`;
     slots.push({ start, end });
   }
   return slots;
@@ -44,15 +51,16 @@ function generateTimeSlots() {
 
 const timeSlots = generateTimeSlots();
 
-const Booking = () => {
+function BookingForm() {
   const navigate = useNavigate();
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [currentBooking, setCurrentBooking] = useState(null);
   const [selectedFacility, setSelectedFacility] = useState(facilities[0]);
-  const [bookedSlots, setBookedSlots] = useState({}); // {facility: [{start, end}]}
+  const [bookedSlots, setBookedSlots] = useState({});
   const [selectedSlotIdx, setSelectedSlotIdx] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [qrCode, setQrCode] = useState(null);
 
   useEffect(() => {
     if (!token) {
@@ -65,7 +73,6 @@ const Booking = () => {
       fetchCurrentBooking();
       fetchBookedSlots();
     }
-    // eslint-disable-next-line
   }, [token, selectedFacility]);
 
   const fetchCurrentBooking = async () => {
@@ -78,7 +85,6 @@ const Booking = () => {
       setLoading(false);
       if (response.data.booking) {
         setSelectedFacility(response.data.booking.facility);
-        // Find the slot index that matches the booking's start and end
         const idx = timeSlots.findIndex(
           (slot) =>
             slot.start === response.data.booking.start.slice(11, 16) &&
@@ -111,7 +117,6 @@ const Booking = () => {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-        // Store as array of {start, end}
         allBooked[facility] = response.data || [];
       }
       setBookedSlots(allBooked);
@@ -121,12 +126,10 @@ const Booking = () => {
   };
 
   const isSlotBooked = (facility, slot) => {
-    // slot: {start, end}
     const booked = bookedSlots[facility] || [];
     return booked.some(
       (b) =>
-        b.start.slice(11, 16) === slot.start &&
-        b.end.slice(11, 16) === slot.end
+        b.start.slice(11, 16) === slot.start && b.end.slice(11, 16) === slot.end
     );
   };
 
@@ -143,22 +146,31 @@ const Booking = () => {
     try {
       setLoading(true);
       const slot = timeSlots[selectedSlotIdx];
-      await axios.post(
-        "http://localhost:8000/api/booking",
-        {
+      const response = await fetch("http://localhost:8000/api/booking", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
           facility: selectedFacility,
           start: slot.start,
           end: slot.end,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setMessage("Booking successful!");
+        }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setQrCode(data.qr_code);
+        setMessage("Booking successful!");
+        fetchCurrentBooking();
+        fetchBookedSlots();
+      } else {
+        setMessage(`Error: ${data.detail || JSON.stringify(data)}`);
+      }
       setLoading(false);
-      fetchCurrentBooking();
-      fetchBookedSlots();
     } catch (error) {
       setLoading(false);
-      setMessage(error.response?.data?.detail || "Failed to create booking.");
+      setMessage("Failed to create booking.");
     }
   };
 
@@ -183,7 +195,6 @@ const Booking = () => {
     <div style={styles.container}>
       <h2 style={{ marginBottom: "1rem" }}>Facility Booking</h2>
 
-      {/* Facility Tabs */}
       <div style={styles.facilityTabs}>
         {facilities.map((facility) => (
           <button
@@ -222,7 +233,8 @@ const Booking = () => {
           <p>
             Slot time:{" "}
             <strong>
-              {currentBooking.start.slice(11, 16)} - {currentBooking.end.slice(11, 16)}
+              {currentBooking.start.slice(11, 16)} -{" "}
+              {currentBooking.end.slice(11, 16)}
             </strong>
           </p>
           <button
@@ -238,7 +250,6 @@ const Booking = () => {
             {timeSlots.map((slot, idx) => {
               const isBooked = isSlotBooked(selectedFacility, slot);
               const isSelected = selectedSlotIdx === idx;
-
               return (
                 <button
                   key={idx}
@@ -268,9 +279,10 @@ const Booking = () => {
           <button
             style={{
               ...styles.bookBtn,
-              backgroundColor: selectedSlotIdx !== null
-                ? facilityColors[selectedFacility]
-                : "#bdc3c7",
+              backgroundColor:
+                selectedSlotIdx !== null
+                  ? facilityColors[selectedFacility]
+                  : "#bdc3c7",
               cursor: selectedSlotIdx !== null ? "pointer" : "not-allowed",
             }}
             onClick={handleBooking}
@@ -285,17 +297,26 @@ const Booking = () => {
         <p
           style={{
             ...styles.message,
-            color: message.toLowerCase().includes("failed")
-              ? "#e74c3c"
-              : "#27ae60",
+            color:
+              message.toLowerCase().includes("error") ||
+              message.toLowerCase().includes("fail")
+                ? "#e74c3c"
+                : "#27ae60",
           }}
         >
           {message}
         </p>
       )}
+
+      {qrCode && (
+        <div>
+          <h3>Your Booking QR Code</h3>
+          <img src={`data:image/png;base64,${qrCode}`} alt="Booking QR Code" />
+        </div>
+      )}
     </div>
   );
-};
+}
 
 const styles = {
   container: {
@@ -371,4 +392,4 @@ const styles = {
   },
 };
 
-export default Booking;
+export default BookingForm;
