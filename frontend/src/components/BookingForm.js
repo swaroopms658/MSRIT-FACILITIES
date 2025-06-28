@@ -110,7 +110,7 @@ function BookingForm() {
       let allBooked = {};
       for (const facility of facilities) {
         const response = await axios.get(
-          `http://localhost:8000/api/booking/booked-slots?facility=${encodeURIComponent(
+          `http://13.61.26.123:8000/api/booking/booked-slots?facility=${encodeURIComponent(
             facility
           )}`,
           {
@@ -146,7 +146,7 @@ function BookingForm() {
     try {
       setLoading(true);
       const slot = timeSlots[selectedSlotIdx];
-      const response = await fetch("http://localhost:8000/api/booking", {
+      const response = await fetch("http://13.61.26.123:8000/api/booking", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -177,7 +177,7 @@ function BookingForm() {
   const handleCancel = async () => {
     try {
       setLoading(true);
-      await axios.delete("http://localhost:8000/api/booking/cancel", {
+      await axios.delete("http://13.61.26.123:8000/api/booking/cancel", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setMessage("Booking cancelled.");
