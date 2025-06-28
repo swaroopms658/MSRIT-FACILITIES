@@ -17,7 +17,7 @@ const Login = () => {
 
     try {
       const response = await axios.post(
-        "http://13.61.26.123:8000/auth/login",
+        "https://13.61.26.123:8000/auth/login",
         formData
       );
       localStorage.setItem("token", response.data.access_token);
