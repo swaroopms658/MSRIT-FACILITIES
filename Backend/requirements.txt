@@ -6,4 +6,4 @@ passlib[bcrypt]
 PyJWT
 pydantic[email]
 qrcode
-PIL
+Pillow
