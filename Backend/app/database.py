@@ -1,6 +1,6 @@
+import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
-import os
 
 # Load environment variables from .env file
 load_dotenv()
@@ -9,14 +9,15 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
 
-# --- CORRECT WAY TO LOAD THE URL FOR THE BACKEND ---
-# It will use the value from your .env file, or "http://localhost:8000" if not found.
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000") 
+# This URL points to your FRONTEND application for the QR code
+# For local testing, use your computer's IP: http://192.168.1.5:3000
+# For production, use your deployed frontend URL.
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
 
-# Create a MongoDB client and select the database
+# --- Database Setup ---
 client = AsyncIOMotorClient(MONGO_URI)
 db = client[DB_NAME]
 
-# Define the collections to be used elsewhere
+# Define collections for use in other files
 users_collection = db["users"]
 bookings_collection = db["bookings"]
