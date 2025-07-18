@@ -1,4 +1,3 @@
-// BookingForm.js
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -51,6 +50,10 @@ function generateTimeSlots() {
 
 const timeSlots = generateTimeSlots();
 
+// --- IMPORTANT: Replace this with your actual backend URL from .env file ---
+const API_URL = `${process.env.REACT_APP_BACKEND_URL}`;
+
+
 function BookingForm() {
   const navigate = useNavigate();
   const [token, setToken] = useState(localStorage.getItem("token"));
@@ -73,31 +76,40 @@ function BookingForm() {
       fetchCurrentBooking();
       fetchBookedSlots();
     }
-  }, [token, selectedFacility]);
+  }, [token]); // Removed selectedFacility to prevent re-fetching slots on tab change
 
   const fetchCurrentBooking = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/booking/me`, {
+      const response = await axios.get(`${API_URL}/api/booking/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setCurrentBooking(response.data.booking || null);
-      setLoading(false);
-      if (response.data.booking) {
-        setSelectedFacility(response.data.booking.facility);
+      
+      const bookingData = response.data.booking;
+      setCurrentBooking(bookingData || null);
+      
+      // <-- SET THE QR CODE FROM THE FETCHED BOOKING DATA
+      if (bookingData) {
+        setQrCode(bookingData.qr_code || null);
+        setSelectedFacility(bookingData.facility);
         const idx = timeSlots.findIndex(
           (slot) =>
-            slot.start === response.data.booking.start.slice(11, 16) &&
-            slot.end === response.data.booking.end.slice(11, 16)
+            slot.start === bookingData.start.slice(11, 16) &&
+            slot.end === bookingData.end.slice(11, 16)
         );
         setSelectedSlotIdx(idx !== -1 ? idx : null);
       } else {
+        // Clear QR code if there's no booking
+        setQrCode(null);
         setSelectedSlotIdx(null);
       }
+
+      setLoading(false);
     } catch (error) {
       setLoading(false);
       if (error.response && error.response.status === 401) {
         localStorage.removeItem("token");
+        setToken(null); // Clear token state
         navigate("/login");
       } else {
         setMessage("Failed to fetch booking info.");
@@ -107,18 +119,16 @@ function BookingForm() {
 
   const fetchBookedSlots = async () => {
     try {
-      let allBooked = {};
-      for (const facility of facilities) {
-        const response = await axios.get(
-          `${process.env.REACT_APP_BACKEND_URL}/api/booking/booked-slots?facility=${encodeURIComponent(
-            facility
-          )}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        allBooked[facility] = response.data || [];
-      }
+      const response = await axios.get(`${API_URL}/api/booking/booked-slots`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      // Group booked slots by facility for efficient lookup
+      const allBooked = facilities.reduce((acc, facility) => {
+        acc[facility] = response.data.filter(b => b.facility === facility);
+        return acc;
+      }, {});
+
       setBookedSlots(allBooked);
     } catch (error) {
       setMessage("Failed to fetch booked slots.");
@@ -146,7 +156,7 @@ function BookingForm() {
     try {
       setLoading(true);
       const slot = timeSlots[selectedSlotIdx];
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/booking`, {
+      const response = await fetch(`${API_URL}/api/booking`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -160,9 +170,9 @@ function BookingForm() {
       });
       const data = await response.json();
       if (response.ok) {
-        setQrCode(data.qr_code);
         setMessage("Booking successful!");
-        fetchCurrentBooking();
+        // The QR code is already in the response, but we re-fetch to be sure
+        fetchCurrentBooking(); 
         fetchBookedSlots();
       } else {
         setMessage(`Error: ${data.detail || JSON.stringify(data)}`);
@@ -177,18 +187,26 @@ function BookingForm() {
   const handleCancel = async () => {
     try {
       setLoading(true);
-      await axios.delete(`${process.env.REACT_APP_BACKEND_URL}/api/booking/cancel`, {
+      await axios.delete(`${API_URL}/api/booking/cancel`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setMessage("Booking cancelled.");
       setCurrentBooking(null);
       setSelectedSlotIdx(null);
-      fetchBookedSlots();
+      setQrCode(null); // <-- CLEAR THE QR CODE ON CANCEL
+      fetchBookedSlots(); // Refresh slot availability
       setLoading(false);
     } catch (error) {
       setLoading(false);
       setMessage(error.response?.data?.detail || "Failed to cancel booking.");
     }
+  };
+
+  // This function is called when the user clicks a facility tab
+  const handleFacilityChange = (facility) => {
+    setSelectedFacility(facility);
+    setSelectedSlotIdx(null); // Reset selected slot
+    setMessage("");
   };
 
   return (
@@ -199,11 +217,7 @@ function BookingForm() {
         {facilities.map((facility) => (
           <button
             key={facility}
-            onClick={() => {
-              setSelectedFacility(facility);
-              setSelectedSlotIdx(null);
-              setMessage("");
-            }}
+            onClick={() => handleFacilityChange(facility)}
             style={{
               ...styles.facilityTab,
               backgroundColor:
@@ -225,6 +239,7 @@ function BookingForm() {
 
       {loading && <p style={{ marginTop: "1rem" }}>Loading...</p>}
 
+      {/* Display QR Code and booking info if a booking exists */}
       {!loading && currentBooking ? (
         <div style={styles.bookingInfo}>
           <p>
@@ -237,6 +252,12 @@ function BookingForm() {
               {currentBooking.end.slice(11, 16)}
             </strong>
           </p>
+          {qrCode && (
+            <div style={{marginTop: '20px'}}>
+              <h3>Your Booking QR Code</h3>
+              <img src={`data:image/png;base64,${qrCode}`} alt="Booking QR Code" />
+            </div>
+          )}
           <button
             style={{ ...styles.cancelBtn, backgroundColor: "#e74c3c" }}
             onClick={handleCancel}
@@ -245,52 +266,55 @@ function BookingForm() {
           </button>
         </div>
       ) : (
-        <>
-          <div style={styles.slotsGrid}>
-            {timeSlots.map((slot, idx) => {
-              const isBooked = isSlotBooked(selectedFacility, slot);
-              const isSelected = selectedSlotIdx === idx;
-              return (
-                <button
-                  key={idx}
-                  disabled={isBooked}
-                  onClick={() => handleSlotClick(idx)}
-                  style={{
-                    ...styles.slotButton,
-                    backgroundColor: isBooked
-                      ? "#e74c3c"
-                      : isSelected
-                      ? "#27ae60"
-                      : "#2ecc71",
-                    color: "white",
-                    cursor: isBooked ? "not-allowed" : "pointer",
-                    boxShadow: isSelected ? "0 0 8px #27ae60" : "none",
-                    border: "none",
-                    minWidth: 90,
-                  }}
-                  title={isBooked ? "Booked" : `${slot.start} - ${slot.end}`}
-                >
-                  {slot.start} - {slot.end}
-                </button>
-              );
-            })}
-          </div>
+        // Display booking form if no booking exists
+        !loading && (
+          <>
+            <div style={styles.slotsGrid}>
+              {timeSlots.map((slot, idx) => {
+                const isBooked = isSlotBooked(selectedFacility, slot);
+                const isSelected = selectedSlotIdx === idx;
+                return (
+                  <button
+                    key={idx}
+                    disabled={isBooked}
+                    onClick={() => handleSlotClick(idx)}
+                    style={{
+                      ...styles.slotButton,
+                      backgroundColor: isBooked
+                        ? "#bdc3c7" // Grey for booked
+                        : isSelected
+                        ? facilityColors[selectedFacility] // Highlight color
+                        : "#2ecc71", // Default available color
+                      color: "white",
+                      cursor: isBooked ? "not-allowed" : "pointer",
+                      boxShadow: isSelected ? `0 0 8px ${facilityColors[selectedFacility]}` : "none",
+                      border: "none",
+                      opacity: isBooked ? 0.6 : 1,
+                    }}
+                    title={isBooked ? "Booked" : `${slot.start} - ${slot.end}`}
+                  >
+                    {slot.start} - {slot.end}
+                  </button>
+                );
+              })}
+            </div>
 
-          <button
-            style={{
-              ...styles.bookBtn,
-              backgroundColor:
-                selectedSlotIdx !== null
-                  ? facilityColors[selectedFacility]
-                  : "#bdc3c7",
-              cursor: selectedSlotIdx !== null ? "pointer" : "not-allowed",
-            }}
-            onClick={handleBooking}
-            disabled={selectedSlotIdx === null}
-          >
-            Book Selected Slot
-          </button>
-        </>
+            <button
+              style={{
+                ...styles.bookBtn,
+                backgroundColor:
+                  selectedSlotIdx !== null
+                    ? facilityColors[selectedFacility]
+                    : "#bdc3c7",
+                cursor: selectedSlotIdx !== null ? "pointer" : "not-allowed",
+              }}
+              onClick={handleBooking}
+              disabled={selectedSlotIdx === null}
+            >
+              Book Selected Slot
+            </button>
+          </>
+        )
       )}
 
       {message && (
@@ -307,17 +331,11 @@ function BookingForm() {
           {message}
         </p>
       )}
-
-      {qrCode && (
-        <div>
-          <h3>Your Booking QR Code</h3>
-          <img src={`data:image/png;base64,${qrCode}`} alt="Booking QR Code" />
-        </div>
-      )}
     </div>
   );
 }
 
+// Styles remain the same
 const styles = {
   container: {
     maxWidth: "600px",
@@ -345,20 +363,20 @@ const styles = {
   },
   slotsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
+    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
     gap: "12px",
     justifyItems: "center",
     marginBottom: "1.8rem",
   },
   slotButton: {
-    width: "120px",
+    width: "100%",
     height: "45px",
     borderRadius: "8px",
     fontSize: "1rem",
     fontWeight: "600",
     outline: "none",
     userSelect: "none",
-    transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+    transition: "all 0.3s ease",
   },
   bookBtn: {
     padding: "14px 40px",

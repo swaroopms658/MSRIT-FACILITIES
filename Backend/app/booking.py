@@ -9,7 +9,8 @@ from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Depends, status, Query
 from pydantic import BaseModel
 from .auth import verify_token
-from .database import bookings_collection, users_collection
+# --- UPDATED IMPORT TO GET THE NEW VARIABLE ---
+from .database import bookings_collection, users_collection, API_BASE_URL
 
 router = APIRouter(prefix="/api/booking", tags=["booking"])
 
@@ -58,18 +59,12 @@ async def create_booking(booking: BookingRequest, user=Depends(verify_token)):
     if overlapping:
         raise HTTPException(status_code=400, detail="Slot already booked for this time")
 
-    booking_doc = {
-        "facility": booking.facility,
-        "start": slot_start,
-        "end": slot_end,
-        "user_id": user_id,
-    }
-    result = await bookings_collection.insert_one(booking_doc)
-    booking_id = str(result.inserted_id)
+    temp_booking_id = ObjectId()
 
-    # Generate QR code with link to details
-    qr_url = f"https://7c66-2405-201-d004-60ea-d9f4-a9c0-8a89-b86c.ngrok-free.app/api/booking/details/{booking_id}"
-
+    # --- QR Code Generation (FIXED) ---
+    # This now correctly uses the API_BASE_URL variable imported from database.py
+    qr_url = f"{API_BASE_URL}/api/booking/details/{temp_booking_id}"
+    
     qr = qrcode.QRCode(version=1, box_size=10, border=4)
     qr.add_data(qr_url)
     qr.make(fit=True)
@@ -77,14 +72,25 @@ async def create_booking(booking: BookingRequest, user=Depends(verify_token)):
     buffered = BytesIO()
     img.save(buffered, format="PNG")
     qr_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    # --- End QR Code Generation ---
 
+    booking_doc = {
+        "_id": temp_booking_id,
+        "facility": booking.facility,
+        "start": slot_start,
+        "end": slot_end,
+        "user_id": user_id,
+        "qr_code_base64": qr_base64,
+    }
+    await bookings_collection.insert_one(booking_doc)
+    
     return {
         "message": "Booking successful",
         "facility": booking.facility,
         "start": slot_start.isoformat(),
         "end": slot_end.isoformat(),
-        "booking_id": booking_id,
-        "qr_code": qr_base64,  # Base64-encoded image of QR code
+        "booking_id": str(temp_booking_id),
+        "qr_code": qr_base64,
     }
 
 
@@ -99,10 +105,13 @@ async def get_current_booking(user=Depends(verify_token)):
     })
     if booking:
         return {
-            "facility": booking["facility"],
-            "start": booking["start"].isoformat(),
-            "end": booking["end"].isoformat(),
-            "booking_id": str(booking["_id"]),
+            "booking": {
+                "facility": booking["facility"],
+                "start": booking["start"].isoformat(),
+                "end": booking["end"].isoformat(),
+                "booking_id": str(booking["_id"]),
+                "qr_code": booking.get("qr_code_base64")
+            }
         }
     else:
         return {"booking": None}
