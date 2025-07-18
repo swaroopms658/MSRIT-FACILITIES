@@ -25,7 +25,7 @@ const Register = () => {
     setError("");
 
     try {
-      await axios.post("https://configuration-corps-flower-screensaver.trycloudflare.com/auth/register", formData);
+      await axios.post(`${process.env.REACT_APP_BACKEND_URL}/auth/register`, formData);
       setMessage("Registration successful! Redirecting to login...");
       setTimeout(() => {
         navigate("/login");

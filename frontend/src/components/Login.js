@@ -17,7 +17,7 @@ const Login = () => {
 
     try {
       const response = await axios.post(
-        "https://configuration-corps-flower-screensaver.trycloudflare.com/auth/login",
+        `${process.env.REACT_APP_BACKEND_URL}/auth/login`,
         formData
       );
       localStorage.setItem("token", response.data.access_token);
