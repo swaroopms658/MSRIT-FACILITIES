@@ -5,22 +5,20 @@ import { useNavigate } from "react-router-dom";
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const facilities = ["Gym", "Basketball", "Badminton", "Table Tennis"];
-const facilityColors = { 
-  Gym: "#e67e22", 
-  Basketball: "#2980b9", 
-  Badminton: "#27ae60", 
-  "Table Tennis": "#8e44ad" 
+const facilityColors = {
+  Gym: "#e67e22",
+  Basketball: "#2980b9",
+  Badminton: "#27ae60",
+  "Table Tennis": "#8e44ad"
 };
 
 function generateTimeSlots() {
   const slots = [];
-  // 10:00-13:00 (last slot ends at 13:00)
   for (let hour = 10; hour < 13; hour++) {
     slots.push({ start: `${String(hour).padStart(2, '0')}:00`, end: `${String(hour).padStart(2, '0')}:30` });
     slots.push({ start: `${String(hour).padStart(2, '0')}:30`, end: `${String(hour + 1).padStart(2, '0')}:00` });
   }
-  // 14:00-16:00 (last slot ends at 16:00)
-  for (let hour = 14; hour < 16; hour++) {
+  for (let hour = 14; hour < 17; hour++) {
     slots.push({ start: `${String(hour).padStart(2, '0')}:00`, end: `${String(hour).padStart(2, '0')}:30` });
     slots.push({ start: `${String(hour).padStart(2, '0')}:30`, end: `${String(hour + 1).padStart(2, '0')}:00` });
   }
@@ -28,15 +26,24 @@ function generateTimeSlots() {
 }
 const timeSlots = generateTimeSlots();
 
-// Helper: Convert "10:00" to "10:00 AM" in IST
 function prettyTimeLabel(t) {
   const [h, m] = t.split(":").map(Number);
   const date = new Date();
   date.setHours(h, m, 0, 0);
-  return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute:'2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+  // always Asia/Kolkata, always uppercase
+  return date
+    .toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
+    })
+    .replace(/\s+/g, ' ')
+    .replace('.', '')
+    .toUpperCase();
 }
 
-// For ISO datetimes (from backend), show IST
+// Used when we have ISO string from backend (after reload/fetch)
 function formatIstTime(dtString) {
   if (!dtString) return '';
   return new Date(dtString).toLocaleTimeString('en-IN', {
@@ -44,7 +51,13 @@ function formatIstTime(dtString) {
     minute: '2-digit',
     hour12: true,
     timeZone: 'Asia/Kolkata',
-  });
+  }).replace(/\s+/g, ' ').replace('.', '').toUpperCase();
+}
+
+// Helper to find the corresponding slot (by start/end) so we can show the originally intended time label after booking
+function getSlotLabel(slotStart, slotEnd) {
+  if (!slotStart || !slotEnd) return '';
+  return `${prettyTimeLabel(slotStart)} — ${prettyTimeLabel(slotEnd)}`;
 }
 
 function BookingForm() {
@@ -57,6 +70,8 @@ function BookingForm() {
   const [selectedSlotIdx, setSelectedSlotIdx] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  // for immediate label after booking:
+  const [lastBookedSlot, setLastBookedSlot] = useState(null);
 
   const handleApiError = (error) => {
     if (error.response?.status === 401) {
@@ -94,6 +109,8 @@ function BookingForm() {
         }, {});
         setBookedSlots(allBooked);
 
+        setLastBookedSlot(null); // reset the immediate label after fresh fetch
+
       } catch (error) {
         handleApiError(error);
       } finally {
@@ -118,6 +135,7 @@ function BookingForm() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setCurrentBooking(response.data);
+      setLastBookedSlot(slot); // Store latest slot for immediate label
       setMessage("Booking successful!");
     } catch (error) {
       handleApiError(error);
@@ -130,6 +148,7 @@ function BookingForm() {
       await axios.delete(`${API_URL}/api/booking/cancel`, { headers: { Authorization: `Bearer ${token}` } });
       setMessage("Booking cancelled.");
       setCurrentBooking(null);
+      setLastBookedSlot(null);
     } catch (error) {
       handleApiError(error);
     }
@@ -149,12 +168,24 @@ function BookingForm() {
     );
   }
 
+  // For the label above the QR: if we just booked, show "10:00 AM — 10:30 AM" per slot chosen; else, use backend (persisted) times
+  function getActiveBookingTimeLabel() {
+    if (lastBookedSlot && currentBooking) {
+      // Just booked, use HH:MM of selected slot
+      return getSlotLabel(lastBookedSlot.start, lastBookedSlot.end);
+    } else if (currentBooking && currentBooking.start && currentBooking.end) {
+      // On reload, use backend persisted times (parse ISO dates)
+      return `${formatIstTime(currentBooking.start)} — ${formatIstTime(currentBooking.end)}`;
+    }
+    return '';
+  }
+
   return (
     <div style={styles.container}>
       <h2 style={{ marginBottom: "1rem" }}>Facility Booking</h2>
-      {message && 
+      {message &&
         <p style={{
-          ...styles.message, 
+          ...styles.message,
           color: message.toLowerCase().includes("error") || message.toLowerCase().includes("cooldown") ? "#e74c3c" : "#27ae60"
         }}>{message}</p>
       }
@@ -164,11 +195,11 @@ function BookingForm() {
           <h3>Your Active Booking</h3>
           <p>
             <strong>{currentBooking.facility}</strong> at <strong>
-              {formatIstTime(currentBooking.start)} — {formatIstTime(currentBooking.end)}
+              {getActiveBookingTimeLabel()}
             </strong>
           </p>
-          {currentBooking.qr_code_base64 && 
-            <img src={`data:image/png;base64,${currentBooking.qr_code_base64}`} alt="Booking QR Code" style={{maxWidth: '200px', margin: '1rem auto', display: 'block'}}/>
+          {currentBooking.qr_code_base64 &&
+            <img src={`data:image/png;base64,${currentBooking.qr_code_base64}`} alt="Booking QR Code" style={{ maxWidth: '200px', margin: '1rem auto', display: 'block' }} />
           }
           <button onClick={handleCancel} style={styles.cancelBtn}>Cancel Booking</button>
         </div>
@@ -176,11 +207,11 @@ function BookingForm() {
         <>
           <div style={styles.facilityTabs}>
             {facilities.map(f => (
-              <button key={f} onClick={() => setSelectedFacility(f)} 
+              <button key={f} onClick={() => setSelectedFacility(f)}
                 style={{
-                  ...styles.facilityTab, 
-                  backgroundColor: selectedFacility === f ? facilityColors[f] : "transparent", 
-                  color: selectedFacility === f ? "white" : facilityColors[f], 
+                  ...styles.facilityTab,
+                  backgroundColor: selectedFacility === f ? facilityColors[f] : "transparent",
+                  color: selectedFacility === f ? "white" : facilityColors[f],
                   borderColor: facilityColors[f]
                 }}>{f}
               </button>
@@ -190,12 +221,12 @@ function BookingForm() {
             {timeSlots.map((slot, idx) => {
               const isBooked = isSlotBooked(selectedFacility, slot);
               return (
-                <button 
-                  key={idx} 
+                <button
+                  key={idx}
                   disabled={isBooked}
                   onClick={() => setSelectedSlotIdx(idx)}
                   style={{
-                    ...styles.slotButton, 
+                    ...styles.slotButton,
                     backgroundColor: isBooked
                       ? "#bdc3c7"
                       : selectedSlotIdx === idx
@@ -213,7 +244,7 @@ function BookingForm() {
             onClick={handleBooking}
             disabled={selectedSlotIdx === null}
             style={{
-              ...styles.bookBtn, 
+              ...styles.bookBtn,
               backgroundColor: selectedSlotIdx !== null ? facilityColors[selectedFacility] : "#bdc3c7"
             }}
           >
@@ -230,9 +261,26 @@ const styles = {
   cooldownBox: { padding: '2rem', backgroundColor: '#fffbe6', border: '1px solid #ffe58f', borderRadius: '8px', color: '#d46b08' },
   facilityTabs: { display: "flex", justifyContent: "center", gap: "10px", marginBottom: "1.5rem", flexWrap: "wrap" },
   facilityTab: { padding: "8px 18px", borderRadius: "25px", border: "2px solid", fontSize: "1rem", cursor: "pointer" },
-  slotsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px", marginBottom: "1.5rem" },
-  slotButton: { width: "100%", height: "45px", borderRadius: "8px", border: "none", color: "white", fontWeight: "600", cursor: "pointer", fontSize: "1.1rem" },
-  bookBtn: { padding: "12px 30px", borderRadius: "30px", border: "none", color: "white", fontWeight: "700", fontSize: "1.1rem", cursor: "pointer" },
+  slotsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)", // 3 columns
+    gap: "15px",
+    marginBottom: "1.5rem"
+  },
+  slotButton: {
+    width: "100%",
+    minHeight: "60px",
+    borderRadius: "10px",
+    border: "none",
+    color: "white",
+    fontWeight: "600",
+    cursor: "pointer",
+    fontSize: "1rem",
+    whiteSpace: "nowrap",        // Prevent line breaks
+    overflow: "hidden",
+    textOverflow: "ellipsis"
+  },
+  bookBtn: { padding: "13px 38px", borderRadius: "30px", border: "none", color: "white", fontWeight: "700", fontSize: "1.1rem", cursor: "pointer" },
   bookingInfo: { padding: "1.5rem", backgroundColor: "#f9f9f9", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" },
   cancelBtn: { marginTop: "1rem", padding: "10px 20px", border: "none", borderRadius: "25px", color: "white", fontWeight: "600", cursor: "pointer", backgroundColor: "#e74c3c" },
   message: { marginTop: "1rem", fontWeight: "600" },
