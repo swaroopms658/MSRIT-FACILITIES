@@ -59,3 +59,12 @@ async def login(data: LoginRequest):
     token = str(uuid4())
     active_tokens[token] = user["id"]
     return LoginResponse(access_token=token, token_type="bearer")
+
+@router.get("/me")
+async def get_me(user: dict = Depends(verify_token)):
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "role": user["role"],
+        "name": user["name"],
+    }
