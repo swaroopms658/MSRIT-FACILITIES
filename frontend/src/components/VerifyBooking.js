@@ -4,6 +4,18 @@ import axios from "axios";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+const IST = 'Asia/Kolkata';
+function formatIstTime(dtString) {
+  if (!dtString) return '';
+  return new Date(dtString).toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: IST,
+  });
+}
+
+
 const VerifyBooking = () => {
   const { bookingId } = useParams();
   const [adminToken, setAdminToken] = useState(localStorage.getItem("adminToken"));
@@ -48,11 +60,21 @@ const VerifyBooking = () => {
         { headers: { Authorization: `Bearer ${adminToken}` } }
       );
       setMessage(response.data.message);
-      setBookingDetails(prev => ({ ...prev, status: 'completed' })); // Optimistically update UI
+      setBookingDetails(prev => ({ ...prev, status: 'completed' }));
     } catch (err) {
-      setError(err.response?.data?.detail || "Verification failed.");
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+      if (status === 401 || status === 403) {
+        // Token invalid/expired: clear token and show login form
+        localStorage.removeItem("adminToken");
+        setAdminToken(null);
+        setError("Session expired. Please log in again as admin.");
+      } else {
+        setError(detail || "Verification failed.");
+      }
     }
   };
+
 
   if (loading) return <div style={styles.container}><p>Loading...</p></div>;
 
@@ -87,7 +109,10 @@ const VerifyBooking = () => {
         <p><strong>Student:</strong> {bookingDetails.user_details.name}</p>
         <p><strong>Roll Number:</strong> {bookingDetails.user_details.rollNumber}</p>
         <p><strong>Facility:</strong> {bookingDetails.facility}</p>
-        <p><strong>Time:</strong> {new Date(bookingDetails.start).toLocaleTimeString()} - {new Date(bookingDetails.end).toLocaleTimeString()}</p>
+        <p>
+          <strong>Time:</strong> {formatIstTime(bookingDetails.start)} - {formatIstTime(bookingDetails.end)}
+        </p>
+
         <p><strong>Status:</strong> <span style={{...styles.status, backgroundColor: bookingDetails.status === 'completed' ? '#2ecc71' : '#f1c40f' }}>{bookingDetails.status}</span></p>
         {bookingDetails.status === 'booked' && (
           <button onClick={handleVerifyAttendance} style={{...styles.button, backgroundColor: '#27ae60'}}>Confirm Attendance</button>
