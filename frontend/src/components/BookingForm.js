@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import QRDisplay from "./QRDisplay";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -12,15 +13,41 @@ const facilityColors = {
   "Table Tennis": "#8e44ad"
 };
 
+// Date helpers
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+function tomorrowISO() {
+  const t = new Date();
+  t.setDate(t.getDate() + 1);
+  return t.toISOString().slice(0, 10);
+}
+const dateOptions = [
+  { value: "today", label: "Today", getDate: todayISO },
+  { value: "tomorrow", label: "Tomorrow", getDate: tomorrowISO },
+];
+
 function generateTimeSlots() {
   const slots = [];
   for (let hour = 10; hour < 13; hour++) {
-    slots.push({ start: `${String(hour).padStart(2, '0')}:00`, end: `${String(hour).padStart(2, '0')}:30` });
-    slots.push({ start: `${String(hour).padStart(2, '0')}:30`, end: `${String(hour + 1).padStart(2, '0')}:00` });
+    slots.push({
+      start: `${String(hour).padStart(2, '0')}:00`,
+      end: `${String(hour).padStart(2, '0')}:30`,
+    });
+    slots.push({
+      start: `${String(hour).padStart(2, '0')}:30`,
+      end: `${String(hour + 1).padStart(2, '0')}:00`,
+    });
   }
-  for (let hour = 14; hour < 17; hour++) {
-    slots.push({ start: `${String(hour).padStart(2, '0')}:00`, end: `${String(hour).padStart(2, '0')}:30` });
-    slots.push({ start: `${String(hour).padStart(2, '0')}:30`, end: `${String(hour + 1).padStart(2, '0')}:00` });
+  for (let hour = 14; hour < 16; hour++) {
+    slots.push({
+      start: `${String(hour).padStart(2, '0')}:00`,
+      end: `${String(hour).padStart(2, '0')}:30`,
+    });
+    slots.push({
+      start: `${String(hour).padStart(2, '0')}:30`,
+      end: `${String(hour + 1).padStart(2, '0')}:00`,
+    });
   }
   return slots;
 }
@@ -30,34 +57,43 @@ function prettyTimeLabel(t) {
   const [h, m] = t.split(":").map(Number);
   const date = new Date();
   date.setHours(h, m, 0, 0);
-  // always Asia/Kolkata, always uppercase
   return date
-    .toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
+    .toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
       hour12: true,
-      timeZone: 'Asia/Kolkata'
+      timeZone: "Asia/Kolkata"
     })
-    .replace(/\s+/g, ' ')
-    .replace('.', '')
+    .replace(/\s+/g, " ")
+    .replace(".", "")
     .toUpperCase();
 }
 
-// Used when we have ISO string from backend (after reload/fetch)
 function formatIstTime(dtString) {
-  if (!dtString) return '';
-  return new Date(dtString).toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
+  if (!dtString) return "";
+  return new Date(dtString).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: true,
-    timeZone: 'Asia/Kolkata',
-  }).replace(/\s+/g, ' ').replace('.', '').toUpperCase();
+    timeZone: "Asia/Kolkata"
+  }).replace(/\s+/g, " ").replace(".", "").toUpperCase();
 }
 
-// Helper to find the corresponding slot (by start/end) so we can show the originally intended time label after booking
 function getSlotLabel(slotStart, slotEnd) {
-  if (!slotStart || !slotEnd) return '';
+  if (!slotStart || !slotEnd) return "";
   return `${prettyTimeLabel(slotStart)} — ${prettyTimeLabel(slotEnd)}`;
+}
+
+function isSlotInPast(slot, compareDate) {
+  // slot: { start, end }; compareDate: "YYYY-MM-DD" (string)
+  // Returns true if slot.end < now (for today)
+  const now = new Date();
+  const todayIso = todayISO();
+  if (compareDate !== todayIso) return false;
+  const d = new Date();
+  const [h, m] = slot.end.split(":").map(Number);
+  d.setHours(h, m, 0, 0);
+  return d.getTime() < now.getTime();
 }
 
 function BookingForm() {
@@ -68,34 +104,42 @@ function BookingForm() {
   const [selectedFacility, setSelectedFacility] = useState(facilities[0]);
   const [bookedSlots, setBookedSlots] = useState({});
   const [selectedSlotIdx, setSelectedSlotIdx] = useState(null);
+  const [selectedDate, setSelectedDate] = useState("today");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  // for immediate label after booking:
   const [lastBookedSlot, setLastBookedSlot] = useState(null);
 
-  const handleApiError = (error) => {
+  const handleApiError = useCallback((error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
       navigate("/login");
     } else {
-      setMessage(error.response?.data?.detail || "An unexpected error occurred.");
+      setMessage(
+        error.response?.data?.detail
+          ? "API ERROR: " + JSON.stringify(error.response.data.detail)
+          : "An unexpected error occurred."
+      );
+      console.error("API Error Response:", error.response ?? error);
     }
-  };
+  }, [navigate]);
 
+  // Fetch slot data whenever facility/date changes
   useEffect(() => {
     if (!token) {
       navigate("/login");
       return;
     }
-
     const fetchInitialData = async () => {
       setLoading(true);
       setMessage("");
       try {
         const headers = { Authorization: `Bearer ${token}` };
+        // Always get booking/me (current)  
+        // But fetch booked slots for currently selected date
+        const bookingDate = dateOptions.find(d => d.value === selectedDate).getDate();
         const [meResponse, slotsResponse] = await Promise.all([
           axios.get(`${API_URL}/api/booking/me`, { headers }),
-          axios.get(`${API_URL}/api/booking/booked-slots`, { headers })
+          axios.get(`${API_URL}/api/booking/booked-slots?date=${bookingDate}`, { headers })
         ]);
 
         const { booking, cooldown_until } = meResponse.data;
@@ -103,14 +147,19 @@ function BookingForm() {
         setCooldownUntil(cooldown_until || null);
         if (booking) setSelectedFacility(booking.facility);
 
-        const allBooked = facilities.reduce((acc, f) => {
-          acc[f] = slotsResponse.data.filter(b => b.facility === f);
-          return acc;
-        }, {});
+        let allBooked;
+        if (Array.isArray(slotsResponse.data)) {
+          allBooked = facilities.reduce((acc, f) => {
+            acc[f] = slotsResponse.data.filter(b => b.facility === f);
+            return acc;
+          }, {});
+        } else {
+          allBooked = facilities.reduce((acc, f) => { acc[f] = []; return acc; }, {});
+          setMessage("Error loading slot info. Please refresh or contact admin.");
+        }
         setBookedSlots(allBooked);
 
-        setLastBookedSlot(null); // reset the immediate label after fresh fetch
-
+        setLastBookedSlot(null);
       } catch (error) {
         handleApiError(error);
       } finally {
@@ -119,23 +168,35 @@ function BookingForm() {
     };
 
     fetchInitialData();
-  }, [token, navigate]);
+    setSelectedSlotIdx(null); // unselect slot when date changes
+  }, [token, navigate, handleApiError, selectedDate]);
 
   const isSlotBooked = (facility, slot) => {
-    return bookedSlots[facility]?.some(b => b.start.slice(11, 16) === slot.start);
+    return bookedSlots[facility]?.some(b => b.start === slot.start);
   };
 
   const handleBooking = async () => {
-    if (selectedSlotIdx === null) return;
+    if (selectedSlotIdx === null) {
+      setMessage("Please select a slot before booking.");
+      return;
+    }
     setMessage("");
+    const slot = timeSlots[selectedSlotIdx];
+    const selectedBookingDate = dateOptions.find(d => d.value === selectedDate).getDate();
+
+    const dataToSend = {
+      facility: selectedFacility,
+      start: slot.start,
+      end: slot.end,
+      date: selectedBookingDate
+    };
     try {
-      const slot = timeSlots[selectedSlotIdx];
       const response = await axios.post(`${API_URL}/api/booking`,
-        { facility: selectedFacility, start: slot.start, end: slot.end },
+        dataToSend,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setCurrentBooking(response.data);
-      setLastBookedSlot(slot); // Store latest slot for immediate label
+      setLastBookedSlot(slot);
       setMessage("Booking successful!");
     } catch (error) {
       handleApiError(error);
@@ -168,13 +229,10 @@ function BookingForm() {
     );
   }
 
-  // For the label above the QR: if we just booked, show "10:00 AM — 10:30 AM" per slot chosen; else, use backend (persisted) times
   function getActiveBookingTimeLabel() {
     if (lastBookedSlot && currentBooking) {
-      // Just booked, use HH:MM of selected slot
       return getSlotLabel(lastBookedSlot.start, lastBookedSlot.end);
     } else if (currentBooking && currentBooking.start && currentBooking.end) {
-      // On reload, use backend persisted times (parse ISO dates)
       return `${formatIstTime(currentBooking.start)} — ${formatIstTime(currentBooking.end)}`;
     }
     return '';
@@ -183,13 +241,24 @@ function BookingForm() {
   return (
     <div style={styles.container}>
       <h2 style={{ marginBottom: "1rem" }}>Facility Booking</h2>
+      <div style={{
+        display: "flex", alignItems: "center",
+        justifyContent: "center", gap: 18, margin: "0 0 24px",
+        fontSize: "1.12rem"
+      }}>
+        <span>Date:</span>
+        <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)} style={{ fontSize: "1rem", padding: "4px 10px", borderRadius: 8, marginRight: 14 }}>
+          {dateOptions.map(opt =>
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          )}
+        </select>
+      </div>
       {message &&
         <p style={{
           ...styles.message,
-          color: message.toLowerCase().includes("error") || message.toLowerCase().includes("cooldown") ? "#e74c3c" : "#27ae60"
+          color: message.toLowerCase().includes("error") || message.toLowerCase().includes("cooldown") || message.toLowerCase().includes("api error") ? "#e74c3c" : "#27ae60"
         }}>{message}</p>
       }
-
       {currentBooking ? (
         <div style={styles.bookingInfo}>
           <h3>Your Active Booking</h3>
@@ -198,9 +267,14 @@ function BookingForm() {
               {getActiveBookingTimeLabel()}
             </strong>
           </p>
-          {currentBooking.qr_code_base64 &&
-            <img src={`data:image/png;base64,${currentBooking.qr_code_base64}`} alt="Booking QR Code" style={{ maxWidth: '200px', margin: '1rem auto', display: 'block' }} />
-          }
+          <QRDisplay
+            value={currentBooking.qr_url || ""}
+            qr_code_base64={currentBooking.qr_code_base64}
+            slot={{
+              start: (lastBookedSlot && lastBookedSlot.start) || (currentBooking.start && currentBooking.start.slice ? currentBooking.start.slice(11, 16) : ""),
+              end: (lastBookedSlot && lastBookedSlot.end) || (currentBooking.end && currentBooking.end.slice ? currentBooking.end.slice(11, 16) : "")
+            }}
+          />
           <button onClick={handleCancel} style={styles.cancelBtn}>Cancel Booking</button>
         </div>
       ) : (
@@ -220,22 +294,24 @@ function BookingForm() {
           <div style={styles.slotsGrid}>
             {timeSlots.map((slot, idx) => {
               const isBooked = isSlotBooked(selectedFacility, slot);
+              const bookingDate = dateOptions.find(d => d.value === selectedDate).getDate();
+              const past = isSlotInPast(slot, bookingDate);
               return (
                 <button
                   key={idx}
-                  disabled={isBooked}
+                  disabled={isBooked || past}
                   onClick={() => setSelectedSlotIdx(idx)}
                   style={{
                     ...styles.slotButton,
-                    backgroundColor: isBooked
-                      ? "#bdc3c7"
-                      : selectedSlotIdx === idx
-                        ? facilityColors[selectedFacility]
-                        : "#2ecc71",
-                    cursor: isBooked ? "not-allowed" : "pointer"
+                    backgroundColor: isBooked ? "#bdc3c7"
+                      : past ? "#efefef"
+                        : selectedSlotIdx === idx ? facilityColors[selectedFacility] : "#2ecc71",
+                    cursor: isBooked || past ? "not-allowed" : "pointer",
+                    color: past ? "#8a8a8a" : "white"
                   }}
                 >
                   {prettyTimeLabel(slot.start)} — {prettyTimeLabel(slot.end)}
+                  {past && <span style={{ marginLeft: 8, color: "#b65700", fontSize: "0.95em" }}>Past</span>}
                 </button>
               );
             })}
@@ -261,12 +337,7 @@ const styles = {
   cooldownBox: { padding: '2rem', backgroundColor: '#fffbe6', border: '1px solid #ffe58f', borderRadius: '8px', color: '#d46b08' },
   facilityTabs: { display: "flex", justifyContent: "center", gap: "10px", marginBottom: "1.5rem", flexWrap: "wrap" },
   facilityTab: { padding: "8px 18px", borderRadius: "25px", border: "2px solid", fontSize: "1rem", cursor: "pointer" },
-  slotsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)", // 3 columns
-    gap: "15px",
-    marginBottom: "1.5rem"
-  },
+  slotsGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "15px", marginBottom: "1.5rem" },
   slotButton: {
     width: "100%",
     minHeight: "60px",
@@ -275,8 +346,8 @@ const styles = {
     color: "white",
     fontWeight: "600",
     cursor: "pointer",
-    fontSize: "1rem",
-    whiteSpace: "nowrap",        // Prevent line breaks
+    fontSize: "1.17rem",
+    whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis"
   },

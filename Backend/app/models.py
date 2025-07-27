@@ -36,3 +36,4 @@ class BookingRequest(BaseModel):
     facility: str
     start: str  # "HH:MM"
     end: str    # "HH:MM"
+    date: Optional[str] = None   # NEW: "YYYY-MM-DD"
