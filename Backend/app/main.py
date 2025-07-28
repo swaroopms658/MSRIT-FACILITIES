@@ -5,7 +5,6 @@ from .booking import router as booking_router
 
 app = FastAPI()
 
-# Allow all origins for development purposes
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,10 +13,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include the authentication and booking routers
 app.include_router(auth_router)
 app.include_router(booking_router)
 
 @app.get("/")
-def root():
+async def root():
     return {"message": "Facilities Booking Service is running"}

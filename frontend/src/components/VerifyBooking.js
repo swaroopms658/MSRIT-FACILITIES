@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
-
 const IST = "Asia/Kolkata";
 
 function formatIstTime(dtString) {
@@ -18,12 +17,14 @@ function formatIstTime(dtString) {
 
 function formatDateDDMMYYYY(dateString) {
   if (!dateString) return "";
-  const dt = new Date(dateString);
-  // Format as DD-MM-YYYY
-  const day = String(dt.getDate()).padStart(2, "0");
-  const month = String(dt.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
-  const year = dt.getFullYear();
-  return `${day}-${month}-${year}`;
+  try {
+    const dt = new Date(dateString);
+    if (isNaN(dt.getTime())) return "";
+    return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: IST })
+      .replace(/\//g, "-");
+  } catch {
+    return dateString;
+  }
 }
 
 const VerifyBooking = () => {
@@ -35,14 +36,14 @@ const VerifyBooking = () => {
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isAdmin, setIsAdmin] = useState(null); // never true until role is confirmed
+  const [isAdmin, setIsAdmin] = useState(null);
 
   useEffect(() => {
     const fetchDetails = async () => {
       try {
         const response = await axios.get(`${API_URL}/api/booking/details/${bookingId}`);
         setBookingDetails(response.data);
-      } catch (err) {
+      } catch {
         setError("Could not fetch booking details. The booking may not exist or the link is invalid.");
       } finally {
         setLoading(false);
@@ -51,7 +52,6 @@ const VerifyBooking = () => {
     fetchDetails();
   }, [bookingId]);
 
-  // Validate admin token and role after load or login
   useEffect(() => {
     if (!adminToken) {
       setIsAdmin(null);
@@ -65,7 +65,6 @@ const VerifyBooking = () => {
         if (res.data.role === "admin") {
           setIsAdmin(true);
         } else {
-          // not admin!
           localStorage.removeItem("adminToken");
           setAdminToken(null);
           setIsAdmin(false);
@@ -83,13 +82,10 @@ const VerifyBooking = () => {
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
-    setError("");
-    setMessage("");
+    setError(""); setMessage("");
     try {
-      // 1. Login
       const loginRes = await axios.post(`${API_URL}/auth/login`, { email, password });
       const token = loginRes.data.access_token;
-      // 2. Immediately check role with /auth/me
       const meRes = await axios.get(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -106,10 +102,8 @@ const VerifyBooking = () => {
       setError("");
     } catch (err) {
       const detail = err.response?.data?.detail;
-      if (
-        detail === "Admin privileges required" ||
-        detail === "This area is for facility administrators only. You do not have access."
-      ) {
+      if (detail === "Admin privileges required" ||
+          detail === "This area is for facility administrators only. You do not have access.") {
         setError("This area is for facility administrators only. You do not have access.");
       } else if (typeof detail === "string") {
         setError(detail);
@@ -124,11 +118,9 @@ const VerifyBooking = () => {
 
   const handleVerifyAttendance = async () => {
     try {
-      const response = await axios.post(
-        `${API_URL}/api/booking/verify/${bookingId}`,
-        {},
-        { headers: { Authorization: `Bearer ${adminToken}` } }
-      );
+      const response = await axios.post(`${API_URL}/api/booking/verify/${bookingId}`, {}, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
       setMessage(response.data.message);
       setBookingDetails(prev => ({ ...prev, status: "completed" }));
     } catch (err) {
@@ -145,19 +137,12 @@ const VerifyBooking = () => {
     }
   };
 
-  if (loading)
-    return (
-      <div style={styles.container}>
-        <p>Loading...</p>
-      </div>
-    );
+  if (loading) {
+    return <div style={styles.container}><p>Loading...</p></div>;
+  }
 
   if (!bookingDetails || !bookingDetails.user_details) {
-    return (
-      <div style={styles.container}>
-        <p style={styles.error}>{error || "No booking details found."}</p>
-      </div>
-    );
+    return <div style={styles.container}><p style={styles.error}>{error || "No booking details found."}</p></div>;
   }
 
   if (!adminToken || isAdmin === false) {
@@ -181,7 +166,6 @@ const VerifyBooking = () => {
     );
   }
 
-  // Admin view
   return (
     <div style={styles.container}>
       <h2 style={styles.header}>Verify Booking Attendance</h2>
@@ -189,18 +173,14 @@ const VerifyBooking = () => {
         <p><strong>Student:</strong> {bookingDetails.user_details.name}</p>
         <p><strong>Roll Number:</strong> {bookingDetails.user_details.rollNumber}</p>
         <p><strong>Facility:</strong> {bookingDetails.facility}</p>
-        <p><strong>Date:</strong> {formatDateDDMMYYYY(bookingDetails.date)}</p> {/* Added date display */}
+        <p><strong>Date:</strong> {formatDateDDMMYYYY(bookingDetails.date)}</p>
         <p><strong>Time:</strong> {formatIstTime(bookingDetails.start)} - {formatIstTime(bookingDetails.end)}</p>
         <p>
           <strong>Status:</strong>
-          <span
-            style={{
-              ...styles.status,
-              backgroundColor: bookingDetails.status === "completed" ? "#2ecc71" : "#f1c40f"
-            }}
-          >
-            {bookingDetails.status}
-          </span>
+          <span style={{
+            ...styles.status,
+            backgroundColor: bookingDetails.status === "completed" ? "#2ecc71" : "#f1c40f"
+          }}>{bookingDetails.status}</span>
         </p>
         {bookingDetails.status === "booked" && (
           <button onClick={handleVerifyAttendance} style={{ ...styles.button, backgroundColor: "#27ae60" }}>

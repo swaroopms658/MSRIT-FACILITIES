@@ -1,6 +1,5 @@
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Literal, Optional
-from datetime import datetime
 
 MSRIT_DOMAIN = "@msrit.edu"
 
@@ -36,4 +35,4 @@ class BookingRequest(BaseModel):
     facility: str
     start: str  # "HH:MM"
     end: str    # "HH:MM"
-    date: Optional[str] = None   # NEW: "YYYY-MM-DD"
+    date: Optional[str] = None  # "YYYY-MM-DD"
