@@ -1,5 +1,3 @@
-import base64
-from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Depends, status
@@ -31,13 +29,11 @@ def get_tomorrow_str():
 def serialize_document(doc):
     if not doc:
         return None
-    # Copy to avoid side effects
     doc_copy = doc.copy()
     doc_copy["_id"] = str(doc_copy["_id"])
     for key, value in doc_copy.items():
         if isinstance(value, datetime):
             doc_copy[key] = value.astimezone(IST).isoformat()
-    # qr_url included in DB doc, no base64 QR code anymore
     return doc_copy
 
 
@@ -83,7 +79,7 @@ async def create_booking(booking: BookingRequest, user=Depends(verify_token)):
         "end": booking.end,
         "user_id": user_id,
         "status": "booked",
-        "qr_url": qr_url,  # Send QR URL string only
+        "qr_url": qr_url,
     }
     await bookings_collection.insert_one(booking_doc)
     return serialize_document(booking_doc)
@@ -91,7 +87,7 @@ async def create_booking(booking: BookingRequest, user=Depends(verify_token)):
 
 @router.get("/me")
 async def get_my_status(user=Depends(verify_token)):
-    booking = await bookings_collection.find_one({"user_id": user["id"], "status": "booked"})
+    booking = await bookings_collection.find_one({"user_id": user["id"], "status": {"$in": ["booked", "completed"]}})
     cooldown_time = user.get("cooldown_until")
 
     if booking:
@@ -189,10 +185,17 @@ async def verify_booking(booking_id: str, admin=Depends(verify_admin)):
     return {"message": "Booking marked as completed."}
 
 
-@router.post("/admin/process-missed")
-async def process_missed(admin=Depends(verify_admin)):
-    now_utc = datetime.now(timezone.utc)
+async def process_missed_bookings():
+    """
+    Scan for 'booked' bookings whose slot ended at least 10 minutes ago,
+    mark as 'missed', and apply 24-hour cooldown to users.
+    Returns the count of bookings processed.
+    """
     cooldown_duration = timedelta(hours=24)
+    grace_period = timedelta(minutes=10)
+
+    now_utc = datetime.now(timezone.utc)
+    cutoff_time = now_utc - grace_period
 
     missed_bookings_cursor = bookings_collection.find({
         "status": "booked",
@@ -201,10 +204,11 @@ async def process_missed(admin=Depends(verify_admin)):
                 { "$dateFromString": {
                     "dateString": { "$concat": ["$date", "T", "$end", ":00+05:30"] }
                 }},
-                now_utc
+                cutoff_time
             ]
         }
     })
+
     count = 0
     async for booking in missed_bookings_cursor:
         await bookings_collection.update_one({"_id": booking["_id"]}, {"$set": {"status": "missed"}})
@@ -213,6 +217,14 @@ async def process_missed(admin=Depends(verify_admin)):
             {"$set": {"cooldown_until": now_utc + cooldown_duration}}
         )
         count += 1
+
+    print(f"[Scheduler] Processed {count} missed bookings with cooldown applied.")
+    return count
+
+
+@router.post("/admin/process-missed")
+async def process_missed(admin=Depends(verify_admin)):
+    count = await process_missed_bookings()
     return {"message": f"Processed {count} missed bookings."}
 
 

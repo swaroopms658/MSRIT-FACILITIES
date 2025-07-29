@@ -77,7 +77,7 @@ function isSlotInPast(slot, compareDate) {
 
 function BookingForm() {
   const navigate = useNavigate();
-  const [token] = useState(localStorage.getItem("token"));
+  const [token, setToken] = useState(localStorage.getItem("token"));
   const [currentBooking, setCurrentBooking] = useState(null);
   const [cooldownUntil, setCooldownUntil] = useState(null);
   const [selectedFacility, setSelectedFacility] = useState(facilities[0]);
@@ -91,6 +91,7 @@ function BookingForm() {
   const handleApiError = useCallback((error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
+      setToken(null);
       navigate("/login");
     } else {
       setMessage(
@@ -185,11 +186,18 @@ function BookingForm() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setToken(null);
+    navigate("/login");
+  };
+
   if (loading) return <div style={styles.container}><p>Loading...</p></div>;
 
   if (cooldownUntil && new Date(cooldownUntil) > new Date()) {
     return (
       <div style={styles.container}>
+        <button onClick={handleLogout} style={styles.logoutBtn}>Logout</button>
         <div style={styles.cooldownBox}>
           <h2>Booking Disabled</h2>
           <p>You are on a cooldown for missing a previous booking.</p>
@@ -240,6 +248,8 @@ function BookingForm() {
 
   return (
     <div style={styles.container}>
+      <button onClick={handleLogout} style={styles.logoutBtn}>Logout</button>
+
       <h2 style={{ marginBottom: "1rem" }}>Facility Booking</h2>
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "center", gap: 18, margin: "0 0 24px", fontSize: "1.12rem"
@@ -261,8 +271,8 @@ function BookingForm() {
           ...styles.message,
           color:
             message.toLowerCase().includes("error") ||
-            message.toLowerCase().includes("cooldown") ||
-            message.toLowerCase().includes("api error")
+              message.toLowerCase().includes("cooldown") ||
+              message.toLowerCase().includes("api error")
               ? "#e74c3c"
               : "#27ae60"
         }}>{message}</p>
@@ -390,7 +400,7 @@ function BookingForm() {
 }
 
 const styles = {
-  container: { maxWidth: "700px", margin: "2rem auto", fontFamily: "sans-serif", textAlign: "center", padding: "1rem" },
+  container: { maxWidth: "700px", margin: "2rem auto", fontFamily: "sans-serif", textAlign: "center", padding: "1rem", position: "relative" },
   cooldownBox: { padding: "2rem", backgroundColor: '#fffbe6', border: '1px solid #ffe58f', borderRadius: '8px', color: '#d46b08' },
   facilityTabs: { display: "flex", justifyContent: "center", gap: "10px", marginBottom: "1.5rem", flexWrap: "wrap" },
   facilityTab: { padding: "8px 18px", borderRadius: "25px", border: "2px solid", fontSize: "1rem", cursor: "pointer" },
@@ -411,7 +421,20 @@ const styles = {
   bookBtn: { padding: "13px 38px", borderRadius: "30px", border: "none", color: "white", fontWeight: "700", fontSize: "1.1rem", cursor: "pointer" },
   bookingInfo: { padding: "1.5rem", backgroundColor: "#f9f9f9", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" },
   cancelBtn: { marginTop: "1rem", padding: "10px 20px", border: "none", borderRadius: "25px", color: "white", fontWeight: "600", cursor: "pointer", backgroundColor: "#e74c3c" },
-  message: { marginTop: "1rem", fontWeight: "600" }
+  message: { marginTop: "1rem", fontWeight: "600" },
+  logoutBtn: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    backgroundColor: "#e74c3c",
+    color: "white",
+    border: "none",
+    padding: "8px 15px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: "600",
+    fontSize: "0.9rem",
+  },
 };
 
 export default BookingForm;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -29,6 +29,8 @@ function formatDateDDMMYYYY(dateString) {
 
 const VerifyBooking = () => {
   const { bookingId } = useParams();
+  const navigate = useNavigate();
+
   const [adminToken, setAdminToken] = useState(localStorage.getItem("adminToken"));
   const [bookingDetails, setBookingDetails] = useState(null);
   const [error, setError] = useState("");
@@ -137,6 +139,14 @@ const VerifyBooking = () => {
     }
   };
 
+  // Updated logout handler: clears adminToken and stays on same verify booking page (logged out state)
+  const handleLogout = () => {
+    localStorage.removeItem("adminToken");
+    setAdminToken(null);
+    // Redirect back to same verify page (but logged out)
+    navigate(`/verify-booking/${bookingId}`);
+  };
+
   if (loading) {
     return <div style={styles.container}><p>Loading...</p></div>;
   }
@@ -146,6 +156,7 @@ const VerifyBooking = () => {
   }
 
   if (!adminToken || isAdmin === false) {
+    // Admin not logged in, no logout button here so user can login again
     return (
       <div style={styles.container}>
         <h2 style={styles.header}>Admin Verification Required</h2>
@@ -168,6 +179,8 @@ const VerifyBooking = () => {
 
   return (
     <div style={styles.container}>
+      <button onClick={handleLogout} style={styles.logoutBtn}>Logout</button>
+
       <h2 style={styles.header}>Verify Booking Attendance</h2>
       <div style={styles.detailsCard}>
         <p><strong>Student:</strong> {bookingDetails.user_details.name}</p>
@@ -195,7 +208,7 @@ const VerifyBooking = () => {
 };
 
 const styles = {
-  container: { maxWidth: "500px", margin: "3rem auto", padding: "2rem", textAlign: "center", fontFamily: "sans-serif", boxShadow: "0 4px 15px rgba(0,0,0,0.1)", borderRadius: "8px" },
+  container: { maxWidth: "500px", margin: "3rem auto", padding: "2rem", textAlign: "center", fontFamily: "sans-serif", boxShadow: "0 4px 15px rgba(0,0,0,0.1)", borderRadius: "8px", position: "relative" },
   header: { marginBottom: "1.5rem", color: "#333" },
   form: { display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" },
   input: { padding: "12px", fontSize: "16px", borderRadius: "5px", border: "1px solid #ccc" },
@@ -203,7 +216,20 @@ const styles = {
   detailsCard: { background: "#f9f9f9", padding: "1.5rem", borderRadius: "8px", lineHeight: "1.8", textAlign: "left" },
   status: { padding: "5px 10px", borderRadius: "15px", color: "white", fontWeight: "bold", fontSize: "0.9rem" },
   success: { color: "green", marginTop: "1rem" },
-  error: { color: "red", marginTop: "1rem", fontWeight: "bold" }
+  error: { color: "red", marginTop: "1rem", fontWeight: "bold" },
+  logoutBtn: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    backgroundColor: "#e74c3c",
+    color: "white",
+    border: "none",
+    padding: "8px 15px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: "600",
+    fontSize: "0.9rem",
+  }
 };
 
 export default VerifyBooking;
