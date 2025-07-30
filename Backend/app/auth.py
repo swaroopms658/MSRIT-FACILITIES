@@ -6,10 +6,9 @@ from .database import users_collection
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Password hashing context using bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# In-memory token store (demo purpose only)
+# In-memory token store for demonstration purposes only
 active_tokens = {}
 
 def hash_password(password: str) -> str:
@@ -17,13 +16,13 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify the plain password against the hashed one."""
+    """Verify a plain password against the hashed one."""
     return pwd_context.verify(plain_password, hashed_password)
 
 async def verify_token(authorization: str = Header(...)):
     """
-    Dependency to verify bearer token from Authorization header.
-    Raises 401 if invalid or expired.
+    Verify Bearer token from Authorization header,
+    fetch corresponding user if token is valid.
     """
     if not authorization.startswith("Bearer "):
         raise HTTPException(
@@ -48,15 +47,26 @@ async def verify_token(authorization: str = Header(...)):
         )
     return user
 
+async def verify_admin(user=Depends(verify_token)):
+    """
+    Dependency to ensure the current user is an admin.
+    """
+    if user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required"
+        )
+    return user
+
 @router.post("/register", response_model=UserOut)
 async def register(user: UserIn):
     """
-    Register a new student user.
-    Reject if email already exists.
+    Register a new student user; disallow duplicate emails.
     """
     existing = await users_collection.find_one({"email": user.email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+
     new_user = {
         "id": str(uuid4()),
         "name": user.name,
@@ -64,7 +74,7 @@ async def register(user: UserIn):
         "password": hash_password(user.password),
         "rollNumber": user.rollNumber,
         "department": user.department,
-        "role": "student",  # Students by default at registration
+        "role": "student",  # Default role for new users
         "cooldown_until": None
     }
     await users_collection.insert_one(new_user)
@@ -73,8 +83,7 @@ async def register(user: UserIn):
 @router.post("/login", response_model=LoginResponse)
 async def login(data: LoginRequest):
     """
-    Login user with email and password.
-    Returns access token if credentials valid.
+    Authenticate user and return an access token.
     """
     user = await users_collection.find_one({"email": data.email})
     if not user or not verify_password(data.password, user["password"]):
@@ -90,7 +99,7 @@ async def login(data: LoginRequest):
 @router.get("/me")
 async def get_me(user=Depends(verify_token)):
     """
-    Returns authenticated user details.
+    Return the authenticated user's information.
     """
     return {
         "id": user["id"],
