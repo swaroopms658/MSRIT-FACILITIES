@@ -33,6 +33,6 @@ class LoginResponse(BaseModel):
 
 class BookingRequest(BaseModel):
     facility: str
-    start: str  # "HH:MM"
-    end: str    # "HH:MM"
-    date: Optional[str] = None  # "YYYY-MM-DD"
+    start: str  # Format "HH:MM"
+    end: str    # Format "HH:MM"
+    date: Optional[str] = None  # Format "YYYY-MM-DD"

@@ -3,41 +3,59 @@ from uuid import uuid4
 from passlib.context import CryptContext
 from .models import UserIn, UserOut, LoginRequest, LoginResponse
 from .database import users_collection
-from fastapi.security import HTTPBearer
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Password hashing context using bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-active_tokens = {}  # For demo only. Use Redis/JWT in production.
 
-security = HTTPBearer()
+# In-memory token store (demo purpose only)
+active_tokens = {}
 
 def hash_password(password: str) -> str:
+    """Hash the plain password."""
     return pwd_context.hash(password)
 
-def verify_password(plain_password, hashed_password) -> bool:
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify the plain password against the hashed one."""
     return pwd_context.verify(plain_password, hashed_password)
 
 async def verify_token(authorization: str = Header(...)):
+    """
+    Dependency to verify bearer token from Authorization header.
+    Raises 401 if invalid or expired.
+    """
     if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
-    token = authorization.split(" ")[1]
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authorization header",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = authorization[len("Bearer "):].strip()
     user_id = active_tokens.get(token)
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     user = await users_collection.find_one({"id": user_id})
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    return user
-
-async def verify_admin(user=Depends(verify_token)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 @router.post("/register", response_model=UserOut)
 async def register(user: UserIn):
-    if await users_collection.find_one({"email": user.email}):
+    """
+    Register a new student user.
+    Reject if email already exists.
+    """
+    existing = await users_collection.find_one({"email": user.email})
+    if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     new_user = {
         "id": str(uuid4()),
@@ -46,7 +64,7 @@ async def register(user: UserIn):
         "password": hash_password(user.password),
         "rollNumber": user.rollNumber,
         "department": user.department,
-        "role": "student",
+        "role": "student",  # Students by default at registration
         "cooldown_until": None
     }
     await users_collection.insert_one(new_user)
@@ -54,15 +72,26 @@ async def register(user: UserIn):
 
 @router.post("/login", response_model=LoginResponse)
 async def login(data: LoginRequest):
+    """
+    Login user with email and password.
+    Returns access token if credentials valid.
+    """
     user = await users_collection.find_one({"email": data.email})
     if not user or not verify_password(data.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     token = str(uuid4())
     active_tokens[token] = user["id"]
     return LoginResponse(access_token=token, token_type="bearer")
 
 @router.get("/me")
 async def get_me(user=Depends(verify_token)):
+    """
+    Returns authenticated user details.
+    """
     return {
         "id": user["id"],
         "email": user["email"],

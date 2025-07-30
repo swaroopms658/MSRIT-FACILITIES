@@ -40,10 +40,17 @@ const VerifyBooking = () => {
   const [password, setPassword] = useState("");
   const [isAdmin, setIsAdmin] = useState(null);
 
+  const apiHeaders = (token) => ({
+    Authorization: `Bearer ${token}`,
+    "ngrok-skip-browser-warning": "true"
+  });
+
   useEffect(() => {
     const fetchDetails = async () => {
       try {
-        const response = await axios.get(`${API_URL}/api/booking/details/${bookingId}`);
+        const response = await axios.get(`${API_URL}/api/booking/details/${bookingId}`, {
+          headers: { "ngrok-skip-browser-warning": "true" }
+        });
         setBookingDetails(response.data);
       } catch {
         setError("Could not fetch booking details. The booking may not exist or the link is invalid.");
@@ -62,7 +69,7 @@ const VerifyBooking = () => {
     const checkAdminRole = async () => {
       try {
         const res = await axios.get(`${API_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${adminToken}` }
+          headers: apiHeaders(adminToken)
         });
         if (res.data.role === "admin") {
           setIsAdmin(true);
@@ -84,12 +91,15 @@ const VerifyBooking = () => {
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
-    setError(""); setMessage("");
+    setError("");
+    setMessage("");
     try {
-      const loginRes = await axios.post(`${API_URL}/auth/login`, { email, password });
+      const loginRes = await axios.post(`${API_URL}/auth/login`, { email, password }, {
+        headers: { "ngrok-skip-browser-warning": "true" }
+      });
       const token = loginRes.data.access_token;
       const meRes = await axios.get(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: apiHeaders(token)
       });
       if (meRes.data.role !== "admin") {
         localStorage.removeItem("adminToken");
@@ -121,7 +131,7 @@ const VerifyBooking = () => {
   const handleVerifyAttendance = async () => {
     try {
       const response = await axios.post(`${API_URL}/api/booking/verify/${bookingId}`, {}, {
-        headers: { Authorization: `Bearer ${adminToken}` }
+        headers: apiHeaders(adminToken)
       });
       setMessage(response.data.message);
       setBookingDetails(prev => ({ ...prev, status: "completed" }));

@@ -88,6 +88,11 @@ function BookingForm() {
   const [loading, setLoading] = useState(true);
   const [lastBookedSlot, setLastBookedSlot] = useState(null);
 
+  const apiHeaders = useCallback(() => ({
+    Authorization: `Bearer ${token}`,
+    "ngrok-skip-browser-warning": "true"
+  }), [token]);
+
   const handleApiError = useCallback((error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
@@ -112,7 +117,7 @@ function BookingForm() {
       setLoading(true);
       setMessage("");
       try {
-        const headers = { Authorization: `Bearer ${token}` };
+        const headers = apiHeaders();
         const bookingDate = dateOptions.find((d) => d.value === selectedDate).getDate();
         const [meResponse, slotsResponse] = await Promise.all([
           axios.get(`${API_URL}/api/booking/me`, { headers }),
@@ -142,7 +147,7 @@ function BookingForm() {
     };
     fetchInitialData();
     setSelectedSlotIdx(null);
-  }, [token, navigate, handleApiError, selectedDate]);
+  }, [token, navigate, handleApiError, selectedDate, apiHeaders]);
 
   const isSlotBooked = (facility, slot) => {
     return bookedSlots[facility]?.some((b) => b.start === slot.start);
@@ -164,7 +169,7 @@ function BookingForm() {
     };
     try {
       const response = await axios.post(`${API_URL}/api/booking`, dataToSend, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: apiHeaders()
       });
       setCurrentBooking(response.data);
       setLastBookedSlot(slot);
@@ -177,7 +182,7 @@ function BookingForm() {
   const handleCancel = async () => {
     setMessage("");
     try {
-      await axios.delete(`${API_URL}/api/booking/cancel`, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.delete(`${API_URL}/api/booking/cancel`, { headers: apiHeaders() });
       setMessage("Booking cancelled.");
       setCurrentBooking(null);
       setLastBookedSlot(null);
@@ -219,7 +224,6 @@ function BookingForm() {
     return "";
   }
 
-  // Legend above slots grid
   const legend = (
     <div style={{
       background: "#fffbe6",

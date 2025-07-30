@@ -42,6 +42,10 @@ async def create_booking(booking: BookingRequest, user=Depends(verify_token)):
     user_id = user["id"]
     now_utc = datetime.now(timezone.utc)
 
+    # Validate facility
+    if booking.facility not in VALID_FACILITIES:
+        raise HTTPException(status_code=400, detail="Invalid facility.")
+
     booking_date = booking.date or get_today_str()
     try:
         slot_start = get_slot_datetime(booking_date, booking.start)
@@ -52,13 +56,16 @@ async def create_booking(booking: BookingRequest, user=Depends(verify_token)):
     if booking_date == get_today_str() and slot_start < now_utc:
         raise HTTPException(status_code=400, detail="Cannot book a slot in the past.")
 
+    # Check cooldown
     if user.get("cooldown_until") and user["cooldown_until"] > now_utc:
         cooldown_end_str = user["cooldown_until"].strftime("%Y-%m-%d %H:%M UTC")
         raise HTTPException(status_code=403, detail=f"On cooldown until {cooldown_end_str}.")
 
+    # Check active booking
     if await bookings_collection.find_one({"user_id": user_id, "status": "booked"}):
         raise HTTPException(status_code=400, detail="You already have an active booking.")
 
+    # Check slot clash
     clash_filter = {
         "facility": booking.facility,
         "date": booking_date,
@@ -182,6 +189,7 @@ async def verify_booking(booking_id: str, admin=Depends(verify_admin)):
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Active booking not found.")
+
     return {"message": "Booking marked as completed."}
 
 

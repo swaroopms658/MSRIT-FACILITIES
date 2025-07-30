@@ -17,7 +17,15 @@ function Login() {
     e.preventDefault();
     setError("");
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, formData);
+      const response = await axios.post(
+        `${API_URL}/auth/login`,
+        formData,
+        {
+          headers: {
+            "ngrok-skip-browser-warning": "true"
+          }
+        }
+      );
       localStorage.setItem("token", response.data.access_token);
       navigate("/booking");
     } catch (err) {
@@ -38,10 +46,24 @@ function Login() {
     <div style={styles.container}>
       <h2>Login to Your Account</h2>
       <form onSubmit={handleSubmit} style={styles.form}>
-        <input type="email" name="email" placeholder="College Email"
-          value={formData.email} onChange={handleChange} required style={styles.input} />
-        <input type="password" name="password" placeholder="Password"
-          value={formData.password} onChange={handleChange} required style={styles.input} />
+        <input
+          type="email"
+          name="email"
+          placeholder="College Email"
+          value={formData.email}
+          onChange={handleChange}
+          required
+          style={styles.input}
+        />
+        <input
+          type="password"
+          name="password"
+          placeholder="Password"
+          value={formData.password}
+          onChange={handleChange}
+          required
+          style={styles.input}
+        />
         <button type="submit" style={styles.button}>Login</button>
       </form>
       {error && <pre style={styles.error}>{error}</pre>}
