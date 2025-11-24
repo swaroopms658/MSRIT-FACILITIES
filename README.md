@@ -83,5 +83,3 @@ Notes:
 ## Contributing
 Contributions, issues and feature requests are welcome. Please open an issue to discuss what you would like to change.
 
-## License
-Specify the project license here (e.g., MIT). If there is no license file in the repository, add one before describing the terms.
